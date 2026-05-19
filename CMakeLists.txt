@@ -3,4 +3,8 @@ project(Heartwood)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(Heartwood main.cpp)
+add_executable(Heartwood
+        main.cpp
+        lexer/Lexer.cpp
+        lexer/Token.hpp
+        error/Error.cpp)

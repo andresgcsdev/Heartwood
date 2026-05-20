@@ -5,7 +5,7 @@
 
 namespace
 {
-    // Helper for matching Tokens that are longer than a single character.
+    // Helper for matching Tokens that can be longer than a single character.
     Token matchLargeToken(const std::string &token, const int line)
     {
         // Parsing for String Literals.
@@ -64,6 +64,8 @@ namespace
                 return Token(TokenType::STRUCT, token, line);
             if (token == "enum")
                 return Token(TokenType::ENUM, token, line);
+            if (token == "array")
+                return Token(TokenType::ARRAY, token, line);
 
             if (token == "int")
                 return Token(TokenType::TYPE_INT, token, line);
@@ -76,9 +78,23 @@ namespace
 
             if (token == "true" || token == "false")
                 return Token(TokenType::LITERAL_BOOL, token, line);
+            if (token == "or" || token == "||")
+                return Token(TokenType::OR, token, line);
+            if (token == "and" || token == "&&")
+                return Token(TokenType::AND, token, line);
+            if (token == "xor")
+                return Token(TokenType::XOR, token, line);
+            if (token == "not")
+                return Token(TokenType::NOT, token, line);
 
             return Token(TokenType::IDENTIFIER, token, line);
         }
+
+        // Parsing for boolean operators.
+        if (token == "||")
+            return Token(TokenType::OR, token, line);
+        if (token == "&&")
+            return Token(TokenType::AND, token, line);
 
         // Parsing for equality operators that require more than one character to type.
         if (token == "==")
@@ -89,29 +105,19 @@ namespace
             return Token(TokenType::LESS_EQUALS, token, line);
         if (token == ">=")
             return Token(TokenType::GREATER_EQUALS, token, line);
-        // Parsing for boolean operators.
-        if (token == "or" || token == "||")
-            return Token(TokenType::OR, token, line);
-        if (token == "and" || token == "&&")
-            return Token(TokenType::AND, token, line);
-        if (token == "xor")
-            return Token(TokenType::XOR, token, line);
-        if (token == "not")
-            return Token(TokenType::NOT, token, line);
-
 
         // Function Type assign.
         if (token == "->")
             return Token(TokenType::ARROW, token, line);
 
-        // Mathematical Power (like 2 to the power of 2, equals 4).
-        if (token == "**")
-            return Token(TokenType::POWER, token, line);
-
         // No match.
         return Token(TokenType::ERROR, token, line);
     }
 
+    // Helper function to match special single character tokens.
+    // May return a Token with TokenType::BIGGER,
+    //   which means it can't identify the token based off one character.
+    // When TokenType::BIGGER is found, use matchLargeToken instead.
     Token matchSingleCharToken(const char c, const int line)
     {
         const std::string token(1, c);
@@ -123,70 +129,56 @@ namespace
                 return Token(TokenType::PLUS, token, line);
             case '-':
                 return Token(TokenType::MINUS, token, line);
-                break;
             case '*':
                 return Token(TokenType::MULTIPLY, token, line);
-                break;
             case '/':
                 return Token(TokenType::DIVIDE, token, line);
-                break;
             case '%':
                 return Token(TokenType::MODULO, token, line);
-                break;
             // Boolean operators.
             case '^':
                 return Token(TokenType::XOR, token, line);
-                break;
             case '!':
                 return Token(TokenType::NOT, token, line);
-                break;
             // Magnitude operators.
             case '<':
                 return Token(TokenType::LESS, token, line);
-                break;
             case '>':
                 return Token(TokenType::GREATER, token, line);
-                break;
             // Expression operators.
             case '=':
                 return Token(TokenType::ASSIGN, token, line);
-                break;
             case '(':
                 return Token(TokenType::LPAREN, token, line);
-                break;
             case ')':
                 return Token(TokenType::RPAREN, token, line);
-                break;
             case '{':
                 return Token(TokenType::LBRACE, token, line);
-                break;
             case '}':
                 return Token(TokenType::RBRACE, token, line);
-                break;
             case '[':
                 return Token(TokenType::LBRACK, token, line);
-                break;
             case ']':
                 return Token(TokenType::RBRACK, token, line);
-                break;
             case ';':
                 return Token(TokenType::SEMICOLON, token, line);
-                break;
-            case '.':
-                return Token(TokenType::DOT, token, line);
-                break;
             case ',':
                 return Token(TokenType::COMMA, token, line);
-                break;
             case ':':
                 return Token(TokenType::COLON, token, line);
-                break;
-
+            case ' ':
+                return Token(TokenType::SPACE, token, line);
+            case '"':
+                return Token(TokenType::QUOTE, token, line);
             default:
-                // No Match.
-                return Token(TokenType::ERROR, token, line);
                 break;
         }
+        // This single character token may form a large one.
+        // letters for identifiers, numbers for integer literals, dots for float literals.
+        if (isalnum(c) || c == '.' || c == '|' || c == '&')
+            return Token(TokenType::BIGGER, token, line);
+
+        return Token(TokenType::ERROR, token, line);
     }
 }
 
@@ -201,27 +193,367 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath)
     char c;
     int lineCounter = 1;
     std::string fullToken;
+    bool inString = false;
     while (file.get(c))
     {
-        bool matched = false;
-        if (c == '\n')
+        // Single character match token, does not consider keywords.
+        const Token currentToken = matchSingleCharToken(c, lineCounter);
+        bool matched = true;
+        // Start of string literal check.
+        if (c == '"' && !inString)
         {
-            lineCounter++;
-            matched = true;
+            inString = true;
+            // Break previous token.
+            if (!fullToken.empty())
+            {
+                // Checking for single character tokens.
+                const Token prevToken = matchSingleCharToken(fullToken.back(), lineCounter);
+                if (prevToken.type == TokenType::BIGGER)
+                {
+                    // Token is definitely longer than 1 character.
+                    const Token largePrevToken = matchLargeToken(fullToken, lineCounter);
+                    if (largePrevToken.type != TokenType::ERROR)
+                    {
+                        fullToken.clear();
+                        tokens.push_back(largePrevToken);
+                    }
+                    else
+                    {
+                        matched = false;
+                    }
+                }
+                else if (prevToken.type != TokenType::ERROR)
+                {
+                    fullToken.clear();
+                    tokens.push_back(prevToken);
+                }
+                else
+                // Invalid previous token.
+                    matched = false;
+            }
+            fullToken.push_back('"');
         }
-        if (isdigit(c) && fullToken.empty())
+        // New Line. Will break any token being built before.
+        else if (c == '\n')
         {
+            // Checking for unclosed string literals.
+            if (inString)
+            {
+                matched = false;
+            }
+            // Break previous token.
+            else if (!fullToken.empty())
+            {
+                // Checking for single character tokens.
+                const Token prevToken = matchSingleCharToken(fullToken.back(), lineCounter);
+                if (prevToken.type == TokenType::BIGGER)
+                {
+                    // Token is definitely longer than 1 character.
+                    const Token largePrevToken = matchLargeToken(fullToken, lineCounter);
+                    if (largePrevToken.type != TokenType::ERROR)
+                    {
+                        fullToken.clear();
+                        tokens.push_back(largePrevToken);
+                        lineCounter++;
+                    }
+                    else
+                    {
+                        matched = false;
+                    }
+                }
+                else if (prevToken.type != TokenType::ERROR)
+                {
+                    fullToken.clear();
+                    tokens.push_back(prevToken);
+                    lineCounter++;
+                }
+                else
+                // Invalid previous token.
+                    matched = false;
+            }
+            // Else to prevent line counter increase at mismatch (match == false),
+            // so the error message will point to the actual token error line.
+            else
+                lineCounter++;
+        }
+        // Inside string literal check.
+        else if (inString)
+        {
+            // End of literal check.
+            if (c == '"')
+            {
+                fullToken.push_back('"');
+                const Token largeToken = matchLargeToken(fullToken, lineCounter);
+                tokens.push_back(largeToken);
+                fullToken.clear();
+                inString = false;
+            }
+            else
+            {
+                fullToken.push_back(c);
+            }
+        }
+        // Ignore tabs.
+        else if (c == '\t')
+        {
+            // Break previous token.
+            if (!fullToken.empty())
+            {
+                // Checking for single character tokens.
+                const Token prevToken = matchSingleCharToken(fullToken.back(), lineCounter);
+                if (prevToken.type == TokenType::BIGGER)
+                {
+                    // Token is definitely longer than 1 character.
+                    const Token largePrevToken = matchLargeToken(fullToken, lineCounter);
+                    if (largePrevToken.type != TokenType::ERROR)
+                    {
+                        fullToken.clear();
+                        tokens.push_back(largePrevToken);
+                    }
+                    else
+                    {
+                        matched = false;
+                    }
+                }
+                else if (prevToken.type != TokenType::ERROR)
+                {
+                    fullToken.clear();
+                    tokens.push_back(prevToken);
+                }
+                else
+                // Invalid previous token.
+                    matched = false;
+            }
+        }
+        // Ignore comments.
+        else if (c == '#')
+        {
+            // Break previous token.
+            if (!fullToken.empty())
+            {
+                // Checking for single character tokens.
+                const Token prevToken = matchSingleCharToken(fullToken.back(), lineCounter);
+                if (prevToken.type == TokenType::BIGGER)
+                {
+                    // Token is definitely longer than 1 character.
+                    const Token largePrevToken = matchLargeToken(fullToken, lineCounter);
+                    if (largePrevToken.type != TokenType::ERROR)
+                    {
+                        fullToken.clear();
+                        tokens.push_back(largePrevToken);
+                    }
+                    else
+                    {
+                        matched = false;
+                    }
+                }
+                else if (prevToken.type != TokenType::ERROR)
+                {
+                    fullToken.clear();
+                    tokens.push_back(prevToken);
+                }
+                else
+                // Invalid previous token.
+                    matched = false;
+            }
+            // Looks for next line break or end of file.
+            while (file.get(c) && c != '\n')
+            {
+            }
+            lineCounter++;
+        }
+        // Unknown character.
+        else if (currentToken.type == TokenType::ERROR)
+        {
+            matched = false;
             fullToken.push_back(c);
         }
+        // Discard previous token at space.
+        else if (currentToken.type == TokenType::SPACE)
+        {
+            // Break previous token.
+            // Break previous token.
+            if (!fullToken.empty())
+            {
+                // Checking for single character tokens.
+                const Token prevToken = matchSingleCharToken(fullToken.back(), lineCounter);
+                if (prevToken.type == TokenType::BIGGER)
+                {
+                    // Token is definitely longer than 1 character.
+                    const Token largePrevToken = matchLargeToken(fullToken, lineCounter);
+                    if (largePrevToken.type != TokenType::ERROR)
+                    {
+                        fullToken.clear();
+                        tokens.push_back(largePrevToken);
+                    }
+                    else
+                    {
+                        matched = false;
+                    }
+                }
+                else if (prevToken.type != TokenType::ERROR)
+                {
+                    fullToken.clear();
+                    tokens.push_back(prevToken);
+                }
+                else
+                // Invalid previous token.
+                    matched = false;
+            }
+        }
+        // New Token.
+        else if (fullToken.empty())
+        {
+            // Checking if current char could be a part of a bigger token. (e.g. >=, var, ->)
+            if (currentToken.type == TokenType::BIGGER || currentToken.type == TokenType::LESS || currentToken.type == TokenType::GREATER ||
+                currentToken.type == TokenType::ASSIGN || currentToken.type == TokenType::NOT || currentToken.type == TokenType::MINUS)
+            {
+                // Bigger token.
+                fullToken.push_back(c);
+            }
+            else
+            {
+                // Single character token.
+                tokens.push_back(currentToken);
+            }
+        }
+        // Checking for two character tokens that are not text (==, !=, >=, <=, ->).
+        // Previous character at fullToken is always (<, >, =, !, -) or another character that is an identifier.
+        else if (fullToken.length() == 1)
+        {
+            const Token prevToken = matchSingleCharToken(fullToken.back(), lineCounter);
+            // Looking for ==, !=, >=, <=
+            if (currentToken.type == TokenType::ASSIGN)
+            {
+                switch (prevToken.type)
+                {
+                    case TokenType::LESS:
+                        fullToken.clear();
+                        tokens.push_back(Token{TokenType::LESS_EQUALS, "<=", lineCounter});
+                        break;
+                    case TokenType::GREATER:
+                        fullToken.clear();
+                        tokens.push_back(Token{TokenType::GREATER_EQUALS, ">=", lineCounter});
+                        break;
+                    case TokenType::ASSIGN:
+                        fullToken.clear();
+                        tokens.push_back(Token{TokenType::EQUALS, "==", lineCounter});
+                        break;
+                    case TokenType::NOT:
+                        fullToken.clear();
+                        tokens.push_back(Token{TokenType::NOT_EQUALS, "!=", lineCounter});
+                        break;
+                    default:
+                        // Begins with something other than the expected tokens. Probably a separate token or identifier.
+                        if (prevToken.type != TokenType::ERROR)
+                            tokens.push_back(prevToken);
+                        else
+                            matched = false;
 
+                        fullToken.clear();
+                        // Since this character is an '=', it could be a 2-character token.
+                        fullToken.push_back(c);
+                        break;
+                }
+            }
+            // Looking for ->
+            else if (currentToken.type == TokenType::GREATER && prevToken.type == TokenType::MINUS)
+            {
+                fullToken.clear();
+                tokens.push_back(Token{TokenType::ARROW, "->", lineCounter});
+            }
+            // If not completing for a two-special-character token, append to end of string or discard previous token.
+            else if (currentToken.type != TokenType::ERROR)
+            {
+                // If both are tokens that can be part of a bigger one, ignore for now.
+                if (currentToken.type == TokenType::BIGGER && prevToken.type == TokenType::BIGGER)
+                {
+                    fullToken.push_back(c);
+                }
+                else
+                {
+                    // Discard previous token, they're unrelated.
+                    if (prevToken.type == TokenType::BIGGER)
+                    {
+                        Token largePrevToken = matchLargeToken(fullToken, lineCounter);
+                        tokens.push_back(largePrevToken);
+                    }
+                    else
+                        tokens.push_back(prevToken);
 
+                    fullToken.clear();
+                    // This token could be one that completes a bigger two-special-character token.
+                    if (currentToken.type == TokenType::BIGGER || currentToken.type == TokenType::LESS || currentToken.type == TokenType::GREATER ||
+                        currentToken.type == TokenType::ASSIGN || currentToken.type == TokenType::NOT || currentToken.type == TokenType::MINUS)
+                        // Bigger token.
+                        fullToken.push_back(c);
+                    else
+                        // Single character token.
+                        tokens.push_back(currentToken);
+                }
+            }
+            // No match.
+            else
+            {
+                matched = false;
+            }
+        }
+        // Matching for tokens after 2 characters.
+        else
+        {
+            // Since the current token is evaluated for a single character, the IDENTIFIER type just refers to a letter or number.
+            if (currentToken.type == TokenType::BIGGER)
+            {
+                fullToken.push_back(c);
+            }
+            else
+            {
+                // Current token is not related to previous token.
+                Token prevToken = matchLargeToken(fullToken, lineCounter);
+                fullToken.clear();
+                tokens.push_back(prevToken);
+                // Checking for bigger token possibility.
+                if (currentToken.type == TokenType::LESS || currentToken.type == TokenType::GREATER ||
+                    currentToken.type == TokenType::ASSIGN || currentToken.type == TokenType::NOT || currentToken.type == TokenType::MINUS)
+                    // Bigger token.
+                    fullToken.push_back(c);
+                else
+                    // Single character token.
+                    tokens.push_back(currentToken);
+            }
+        }
         if (!matched)
         {
-            std::string message = "Unexpected character \"";
-            message.append(1, c);
-            message.append("\".");
-            Error::raise(Error::Phase::Lexer, "Unexpected character", lineCounter);
+            file.close();
+            if (inString)
+                Error::raise(Error::Phase::Lexer, "Unterminated string literal", lineCounter);
+            else
+                Error::raise(Error::Phase::Lexer, "Unexpected token \"" + fullToken + "\".", lineCounter);
         }
+    }
+    file.close();
+    if (inString)
+        Error::raise(Error::Phase::Lexer, "Unterminated string literal", lineCounter);
+    else if (!fullToken.empty())
+    {
+        Token currentToken;
+        if (fullToken.length() == 1)
+        {
+            currentToken = matchSingleCharToken(fullToken.back(), lineCounter);
+            if (currentToken.type == TokenType::BIGGER)
+            {
+                currentToken = matchLargeToken(fullToken, lineCounter);
+            }
+        }
+        else
+            currentToken = matchLargeToken(fullToken, lineCounter);
+
+        if (currentToken.type == TokenType::ERROR)
+        {
+            Error::raise(Error::Phase::Lexer, "Unexpected token \"" + fullToken + "\".", lineCounter);
+        }
+        else
+            tokens.push_back(currentToken);
     }
 
     return tokens;

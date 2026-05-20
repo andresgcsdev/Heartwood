@@ -8,3 +8,5 @@ add_executable(Heartwood
         lexer/Lexer.cpp
         lexer/Token.hpp
         error/Error.cpp)
+
+set(CMAKE_EXE_LINKER_FLAGS "-static")

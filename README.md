@@ -49,10 +49,10 @@ var mut count:int = 0;      # mutable
 ### Arrays
 
 ```hw
-var scores:int array[10] = {1, 2, 3, ..., 10};    # fixed size, initialized at declaration.
-var mut log:int mut array = {};                   # grows on access, initialized any time.
-var mut groceries:str array[2] = {"Milk"};        # fixed size, initialized any time.   
-var mut matrix:int mut array[2][2] = {{0, 1},{}}; # multi-dimensional arrays. 
+var scores:int array[10] = [1, 2, 3, ..., 10];    # fixed size, initialized at declaration.
+var mut log:int mut array = [];                   # grows on access, initialized any time.
+var mut groceries:str array[2] = ["Milk"];        # fixed size, initialized any time.   
+var mut matrix:int mut array[2][2] = [[0, 1],[]]; # multi-dimensional arrays. 
 ```
 
 ### Functions
@@ -169,12 +169,12 @@ Your heartwood file must be in the same directory as of the executable!
 
 ## Status
 
-| Component        | Status         |
-|------------------|----------------|
-| Lexer            | ✅ Complete     |
-| Parser           | 🔄 In progress  |
-| Semantic Analysis| 📋 Planned      |
-| Evaluator        | 📋 Planned      |
+| Component         | Status          |
+|-------------------|-----------------|
+| Lexer             | ✅ Complete      |
+| Parser            | 🔄 In progress  |
+| Semantic Analysis | 📋 Planned      |
+| Evaluator         | 📋 Planned      |
 
 ---
 

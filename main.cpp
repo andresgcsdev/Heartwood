@@ -5,6 +5,7 @@
 #include "lexer/Lexer.hpp"
 #include "lexer/Token.hpp"
 
+// Helper functions for printing Structs.
 namespace
 {
     std::string tokenTypeToString(TokenType type) {
@@ -71,8 +72,4 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     const std::vector<Token> tokens = Lexer::tokenize(argv[1]);
-    for (const auto& [type, value, line] : tokens)
-    {
-        std::cout << "Token " << tokenTypeToString(type) << " with value: " << value << " at line " << line << "." << std::endl;
-    }
 }

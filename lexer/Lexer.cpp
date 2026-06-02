@@ -78,9 +78,9 @@ namespace
 
             if (token == "true" || token == "false")
                 return Token(TokenType::LITERAL_BOOL, token, line);
-            if (token == "or" || token == "||")
+            if (token == "or")
                 return Token(TokenType::OR, token, line);
-            if (token == "and" || token == "&&")
+            if (token == "and")
                 return Token(TokenType::AND, token, line);
             if (token == "xor")
                 return Token(TokenType::XOR, token, line);
@@ -180,6 +180,23 @@ namespace
 
         return Token(TokenType::ERROR, token, line);
     }
+
+    // Transforms the given string into a token.
+    // Then appends it to the end of the given token list.
+    // Returns true for successful conversion, false otherwise.
+    bool flushToken(std::string &tokenBuffer, std::vector<Token> &tokens, const int &line)
+    {
+        if (tokenBuffer.empty()) return true;
+
+        const Token prev = matchSingleCharToken(tokenBuffer.back(), line);
+        const Token result = prev.type == TokenType::BIGGER ? matchLargeToken(tokenBuffer, line) : prev;
+
+        if (result.type == TokenType::ERROR) return false;
+
+        tokens.push_back(result);
+        tokenBuffer.clear();
+        return true;
+    }
 }
 
 std::vector<Token> Lexer::tokenize(const std::string &filepath)
@@ -192,7 +209,7 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath)
     std::vector<Token> tokens;
     char c;
     int lineCounter = 1;
-    std::string fullToken;
+    std::string tokenBuffer;
     bool inString = false;
     while (file.get(c))
     {
@@ -203,35 +220,9 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath)
         if (c == '"' && !inString)
         {
             inString = true;
-            // Break previous token.
-            if (!fullToken.empty())
-            {
-                // Checking for single character tokens.
-                const Token prevToken = matchSingleCharToken(fullToken.back(), lineCounter);
-                if (prevToken.type == TokenType::BIGGER)
-                {
-                    // Token is definitely longer than 1 character.
-                    const Token largePrevToken = matchLargeToken(fullToken, lineCounter);
-                    if (largePrevToken.type != TokenType::ERROR)
-                    {
-                        fullToken.clear();
-                        tokens.push_back(largePrevToken);
-                    }
-                    else
-                    {
-                        matched = false;
-                    }
-                }
-                else if (prevToken.type != TokenType::ERROR)
-                {
-                    fullToken.clear();
-                    tokens.push_back(prevToken);
-                }
-                else
-                // Invalid previous token.
-                    matched = false;
-            }
-            fullToken.push_back('"');
+            // Flushing token buffer.
+            matched = flushToken(tokenBuffer, tokens, currentToken.line);
+            tokenBuffer.push_back('"');
         }
         // New Line. Will break any token being built before.
         else if (c == '\n')
@@ -242,34 +233,9 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath)
                 matched = false;
             }
             // Break previous token.
-            else if (!fullToken.empty())
+            else if (!tokenBuffer.empty())
             {
-                // Checking for single character tokens.
-                const Token prevToken = matchSingleCharToken(fullToken.back(), lineCounter);
-                if (prevToken.type == TokenType::BIGGER)
-                {
-                    // Token is definitely longer than 1 character.
-                    const Token largePrevToken = matchLargeToken(fullToken, lineCounter);
-                    if (largePrevToken.type != TokenType::ERROR)
-                    {
-                        fullToken.clear();
-                        tokens.push_back(largePrevToken);
-                        lineCounter++;
-                    }
-                    else
-                    {
-                        matched = false;
-                    }
-                }
-                else if (prevToken.type != TokenType::ERROR)
-                {
-                    fullToken.clear();
-                    tokens.push_back(prevToken);
-                    lineCounter++;
-                }
-                else
-                // Invalid previous token.
-                    matched = false;
+                matched = flushToken(tokenBuffer, tokens, currentToken.line);
             }
             // Else to prevent line counter increase at mismatch (match == false),
             // so the error message will point to the actual token error line.
@@ -282,80 +248,29 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath)
             // End of literal check.
             if (c == '"')
             {
-                fullToken.push_back('"');
-                const Token largeToken = matchLargeToken(fullToken, lineCounter);
+                tokenBuffer.push_back('"');
+                const Token largeToken = matchLargeToken(tokenBuffer, lineCounter);
                 tokens.push_back(largeToken);
-                fullToken.clear();
+                tokenBuffer.clear();
                 inString = false;
             }
             else
             {
-                fullToken.push_back(c);
+                tokenBuffer.push_back(c);
             }
         }
-        // Ignore tabs.
-        else if (c == '\t')
+        // Discard previous token and spaces or tabs.
+        else if (c == '\t' || currentToken.type == TokenType::SPACE)
         {
-            // Break previous token.
-            if (!fullToken.empty())
-            {
-                // Checking for single character tokens.
-                const Token prevToken = matchSingleCharToken(fullToken.back(), lineCounter);
-                if (prevToken.type == TokenType::BIGGER)
-                {
-                    // Token is definitely longer than 1 character.
-                    const Token largePrevToken = matchLargeToken(fullToken, lineCounter);
-                    if (largePrevToken.type != TokenType::ERROR)
-                    {
-                        fullToken.clear();
-                        tokens.push_back(largePrevToken);
-                    }
-                    else
-                    {
-                        matched = false;
-                    }
-                }
-                else if (prevToken.type != TokenType::ERROR)
-                {
-                    fullToken.clear();
-                    tokens.push_back(prevToken);
-                }
-                else
-                // Invalid previous token.
-                    matched = false;
-            }
+            // Flush previous token.
+            matched = flushToken(tokenBuffer, tokens, currentToken.line);
         }
         // Ignore comments.
         else if (c == '#')
         {
-            // Break previous token.
-            if (!fullToken.empty())
-            {
-                // Checking for single character tokens.
-                const Token prevToken = matchSingleCharToken(fullToken.back(), lineCounter);
-                if (prevToken.type == TokenType::BIGGER)
-                {
-                    // Token is definitely longer than 1 character.
-                    const Token largePrevToken = matchLargeToken(fullToken, lineCounter);
-                    if (largePrevToken.type != TokenType::ERROR)
-                    {
-                        fullToken.clear();
-                        tokens.push_back(largePrevToken);
-                    }
-                    else
-                    {
-                        matched = false;
-                    }
-                }
-                else if (prevToken.type != TokenType::ERROR)
-                {
-                    fullToken.clear();
-                    tokens.push_back(prevToken);
-                }
-                else
-                // Invalid previous token.
-                    matched = false;
-            }
+            // Flush previous token.
+            matched = flushToken(tokenBuffer, tokens, currentToken.line);
+
             // Looks for next line break or end of file.
             while (file.get(c) && c != '\n')
             {
@@ -366,50 +281,17 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath)
         else if (currentToken.type == TokenType::ERROR)
         {
             matched = false;
-            fullToken.push_back(c);
-        }
-        // Discard previous token at space.
-        else if (currentToken.type == TokenType::SPACE)
-        {
-            // Break previous token.
-            // Break previous token.
-            if (!fullToken.empty())
-            {
-                // Checking for single character tokens.
-                const Token prevToken = matchSingleCharToken(fullToken.back(), lineCounter);
-                if (prevToken.type == TokenType::BIGGER)
-                {
-                    // Token is definitely longer than 1 character.
-                    const Token largePrevToken = matchLargeToken(fullToken, lineCounter);
-                    if (largePrevToken.type != TokenType::ERROR)
-                    {
-                        fullToken.clear();
-                        tokens.push_back(largePrevToken);
-                    }
-                    else
-                    {
-                        matched = false;
-                    }
-                }
-                else if (prevToken.type != TokenType::ERROR)
-                {
-                    fullToken.clear();
-                    tokens.push_back(prevToken);
-                }
-                else
-                // Invalid previous token.
-                    matched = false;
-            }
+            tokenBuffer.push_back(c);
         }
         // New Token.
-        else if (fullToken.empty())
+        else if (tokenBuffer.empty())
         {
             // Checking if current char could be a part of a bigger token. (e.g. >=, var, ->)
             if (currentToken.type == TokenType::BIGGER || currentToken.type == TokenType::LESS || currentToken.type == TokenType::GREATER ||
                 currentToken.type == TokenType::ASSIGN || currentToken.type == TokenType::NOT || currentToken.type == TokenType::MINUS)
             {
                 // Bigger token.
-                fullToken.push_back(c);
+                tokenBuffer.push_back(c);
             }
             else
             {
@@ -419,28 +301,28 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath)
         }
         // Checking for two character tokens that are not text (==, !=, >=, <=, ->).
         // Previous character at fullToken is always (<, >, =, !, -) or another character that is an identifier.
-        else if (fullToken.length() == 1)
+        else if (tokenBuffer.length() == 1)
         {
-            const Token prevToken = matchSingleCharToken(fullToken.back(), lineCounter);
+            const Token prevToken = matchSingleCharToken(tokenBuffer.back(), lineCounter);
             // Looking for ==, !=, >=, <=
             if (currentToken.type == TokenType::ASSIGN)
             {
                 switch (prevToken.type)
                 {
                     case TokenType::LESS:
-                        fullToken.clear();
+                        tokenBuffer.clear();
                         tokens.push_back(Token{TokenType::LESS_EQUALS, "<=", lineCounter});
                         break;
                     case TokenType::GREATER:
-                        fullToken.clear();
+                        tokenBuffer.clear();
                         tokens.push_back(Token{TokenType::GREATER_EQUALS, ">=", lineCounter});
                         break;
                     case TokenType::ASSIGN:
-                        fullToken.clear();
+                        tokenBuffer.clear();
                         tokens.push_back(Token{TokenType::EQUALS, "==", lineCounter});
                         break;
                     case TokenType::NOT:
-                        fullToken.clear();
+                        tokenBuffer.clear();
                         tokens.push_back(Token{TokenType::NOT_EQUALS, "!=", lineCounter});
                         break;
                     default:
@@ -450,16 +332,16 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath)
                         else
                             matched = false;
 
-                        fullToken.clear();
+                        tokenBuffer.clear();
                         // Since this character is an '=', it could be a 2-character token.
-                        fullToken.push_back(c);
+                        tokenBuffer.push_back(c);
                         break;
                 }
             }
             // Looking for ->
             else if (currentToken.type == TokenType::GREATER && prevToken.type == TokenType::MINUS)
             {
-                fullToken.clear();
+                tokenBuffer.clear();
                 tokens.push_back(Token{TokenType::ARROW, "->", lineCounter});
             }
             // If not completing for a two-special-character token, append to end of string or discard previous token.
@@ -468,25 +350,25 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath)
                 // If both are tokens that can be part of a bigger one, ignore for now.
                 if (currentToken.type == TokenType::BIGGER && prevToken.type == TokenType::BIGGER)
                 {
-                    fullToken.push_back(c);
+                    tokenBuffer.push_back(c);
                 }
                 else
                 {
                     // Discard previous token, they're unrelated.
                     if (prevToken.type == TokenType::BIGGER)
                     {
-                        Token largePrevToken = matchLargeToken(fullToken, lineCounter);
+                        Token largePrevToken = matchLargeToken(tokenBuffer, lineCounter);
                         tokens.push_back(largePrevToken);
                     }
                     else
                         tokens.push_back(prevToken);
 
-                    fullToken.clear();
+                    tokenBuffer.clear();
                     // This token could be one that completes a bigger two-special-character token.
                     if (currentToken.type == TokenType::BIGGER || currentToken.type == TokenType::LESS || currentToken.type == TokenType::GREATER ||
                         currentToken.type == TokenType::ASSIGN || currentToken.type == TokenType::NOT || currentToken.type == TokenType::MINUS)
                         // Bigger token.
-                        fullToken.push_back(c);
+                        tokenBuffer.push_back(c);
                     else
                         // Single character token.
                         tokens.push_back(currentToken);
@@ -504,19 +386,19 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath)
             // Since the current token is evaluated for a single character, the IDENTIFIER type just refers to a letter or number.
             if (currentToken.type == TokenType::BIGGER)
             {
-                fullToken.push_back(c);
+                tokenBuffer.push_back(c);
             }
             else
             {
                 // Current token is not related to previous token.
-                Token prevToken = matchLargeToken(fullToken, lineCounter);
-                fullToken.clear();
+                Token prevToken = matchLargeToken(tokenBuffer, lineCounter);
+                tokenBuffer.clear();
                 tokens.push_back(prevToken);
                 // Checking for bigger token possibility.
                 if (currentToken.type == TokenType::LESS || currentToken.type == TokenType::GREATER ||
                     currentToken.type == TokenType::ASSIGN || currentToken.type == TokenType::NOT || currentToken.type == TokenType::MINUS)
                     // Bigger token.
-                    fullToken.push_back(c);
+                    tokenBuffer.push_back(c);
                 else
                     // Single character token.
                     tokens.push_back(currentToken);
@@ -528,33 +410,16 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath)
             if (inString)
                 Error::raise(Error::Phase::Lexer, "Unterminated string literal", lineCounter);
             else
-                Error::raise(Error::Phase::Lexer, "Unexpected token \"" + fullToken + "\".", lineCounter);
+                Error::raise(Error::Phase::Lexer, "Unexpected token \"" + tokenBuffer + "\".", lineCounter);
         }
     }
     file.close();
+
+    // Flushing anything that remained in the buffer.
     if (inString)
         Error::raise(Error::Phase::Lexer, "Unterminated string literal", lineCounter);
-    else if (!fullToken.empty())
-    {
-        Token currentToken;
-        if (fullToken.length() == 1)
-        {
-            currentToken = matchSingleCharToken(fullToken.back(), lineCounter);
-            if (currentToken.type == TokenType::BIGGER)
-            {
-                currentToken = matchLargeToken(fullToken, lineCounter);
-            }
-        }
-        else
-            currentToken = matchLargeToken(fullToken, lineCounter);
-
-        if (currentToken.type == TokenType::ERROR)
-        {
-            Error::raise(Error::Phase::Lexer, "Unexpected token \"" + fullToken + "\".", lineCounter);
-        }
-        else
-            tokens.push_back(currentToken);
-    }
+    else if (!tokenBuffer.empty())
+        flushToken(tokenBuffer, tokens, lineCounter);
 
     return tokens;
 }

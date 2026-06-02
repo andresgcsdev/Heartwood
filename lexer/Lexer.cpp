@@ -237,9 +237,7 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath)
             {
                 matched = flushToken(tokenBuffer, tokens, currentToken.line);
             }
-            // Else to prevent line counter increase at mismatch (match == false),
-            // so the error message will point to the actual token error line.
-            else
+            if (matched)
                 lineCounter++;
         }
         // Inside string literal check.
@@ -418,8 +416,8 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath)
     // Flushing anything that remained in the buffer.
     if (inString)
         Error::raise(Error::Phase::Lexer, "Unterminated string literal", lineCounter);
-    else if (!tokenBuffer.empty())
-        flushToken(tokenBuffer, tokens, lineCounter);
+    else if (!tokenBuffer.empty() || !flushToken(tokenBuffer, tokens, lineCounter))
+        Error::raise(Error::Phase::Lexer, "Unexpected token \"" + tokenBuffer + "\".", lineCounter);
 
     return tokens;
 }

@@ -1,27 +1,31 @@
 #pragma once
 
 #include <memory>
+#include <variant>
 
 #include "../lexer/Token.hpp"
 
-// File for Abstract Syntax Tree nodes declarations.
+namespace AST
+    {
+        struct Node;
 
-struct ASTNode
-{
-    virtual ~ASTNode() = default;
-};
+        struct BinaryExpr
+        {
+            std::unique_ptr<Node> left, right;
+            Token op;
+        };
 
-struct LiteralNode : ASTNode {
-    Token value;
-};
+        struct Literal
+        {
+            Token value;
+        };
 
-struct BinaryOpNode : ASTNode {
-    Token op;
-    std::unique_ptr<ASTNode> left;
-    std::unique_ptr<ASTNode> right;
-};
+        struct UnaryExpr
+        {
+            std::unique_ptr<Node> operand;
+            Token op;
+        };
 
-struct IdentifierNode : ASTNode
-{
-    Token value;
-};
+        using NodeData = std::variant<BinaryExpr, Literal, UnaryExpr>;
+        struct Node { NodeData data; };
+    }

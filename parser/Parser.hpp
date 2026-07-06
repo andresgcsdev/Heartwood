@@ -10,5 +10,5 @@ namespace Parser
 {
     // Returns the root of the Abstract Syntax Tree of the given token list.
     // May raise an error if syntax is invalid.
-    std::vector<ASTNode> parse(const std::vector<Token> &tks);
+    std::vector<AST::Node> parse(const std::vector<Token> &tks);
 }

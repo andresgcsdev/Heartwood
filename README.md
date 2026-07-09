@@ -49,10 +49,10 @@ var mut count:int = 0;      # mutable
 ### Arrays
 
 ```hw
-var scores:int array[10] = [1, 2, 3, ..., 10];    # fixed size, initialized at declaration.
-var mut log:int mut array = [];                   # grows on access, initialized any time.
-var mut groceries:str array[2] = ["Milk"];        # fixed size, initialized any time.   
-var mut matrix:int mut array[2][2] = [[0, 1],[]]; # multi-dimensional arrays. 
+var scores:int[10] = [1, 2, 3, ..., 10];    # fixed size, initialized at declaration.
+var mut log:int[];                   # grows on access, initialized any time.
+var mut groceries:str[2] = ["Milk"];        # fixed size, initialized any time.   
+var mut matrix:int[][] = [[0, 1],[]]; # multi-dimensional arrays, initialized any time. 
 ```
 
 ### Functions
@@ -66,6 +66,33 @@ fn add(a:int, b:int) -> int
 fn greet(name:str)
 {
     # no return type needed for void functions
+}
+
+fn greet(age:int, name:str)
+{
+   # functions may be overloaded
+}
+
+fn addTimesTwo(mut a:int, mut b:int) -> int
+{
+   a = a*2;
+   b = b*2;
+   #arguments become mutable variables
+   return add(a, b);
+}
+
+fn dontCopy(ref x:int[10]) -> bool
+{
+   # x is passed by reference, no copy is made
+   # cheaper memory cost if needed
+}
+
+fn changeState(mut ref x:int[10]) -> bool
+{
+   # x is passed by reference, no copy is made
+   # any alterations done to x inside of the function have effects outside of it
+   # the reference is borrowed in the function, and cannot be deleted or point to other data
+   # all data only has a single reference at all times, it is only borrowed from function to function
 }
 ```
 
@@ -91,7 +118,7 @@ while (running)
 }
 
 # The iterator variable is mutable by default.
-for (var i:int = 0; i < 10; i = i + 1)
+for (i:int = 0; i < 10; i++)
 {
     # ...
 }
@@ -105,6 +132,12 @@ struct Point
     x:int;
     y:int;
 }
+
+var p:Point = {0, 1}; # automatically casts the given struct expression into the variable type at initialization
+p = Point{1, 2}; # struct expression must contain the struct name at any other assign
+p = Point{3, 4};
+p = Point{4}; #default y = 0
+p = Point{}; #default x = 0, y = 0;
 ```
 
 Structs hold data only — no methods. No circular dependencies allowed.
@@ -116,6 +149,13 @@ enum Direction
 {
     NORTH, SOUTH, EAST, WEST
 }
+
+var a:Direction = Direction::NORTH;
+
+if(a == Direction::NORTH)
+{
+   print("going north!");
+}
 ```
 
 ### Global Scope
@@ -124,6 +164,16 @@ enum Direction
 global
 {
     var mut score:int = 0;
+}
+
+fn function_a() 
+{
+   #can access score
+}
+
+fn function_b()
+{
+   #can access score
 }
 ```
 

@@ -172,7 +172,7 @@ namespace AST
 
         struct GlobalBlock
         {
-            std::vector<std::unique_ptr<VarDecl>> declarations;
+            std::vector<VarDecl> declarations;
         };
 
         // Exit

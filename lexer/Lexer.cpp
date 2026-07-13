@@ -408,7 +408,7 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath)
             if (inString)
                 Error::raise(Error::Phase::Lexer, "Unterminated string literal", lineCounter);
             else
-                Error::raise(Error::Phase::Lexer, "Unexpected token \"" + tokenBuffer + "\".", lineCounter);
+                Error::raise(Error::Phase::Lexer, "Nonexistent token \"" + tokenBuffer + "\".", lineCounter);
         }
     }
     file.close();
@@ -417,7 +417,7 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath)
     if (inString)
         Error::raise(Error::Phase::Lexer, "Unterminated string literal", lineCounter);
     else if (!tokenBuffer.empty() || !flushToken(tokenBuffer, tokens, lineCounter))
-        Error::raise(Error::Phase::Lexer, "Unexpected token \"" + tokenBuffer + "\".", lineCounter);
+        Error::raise(Error::Phase::Lexer, "Nonexistent token \"" + tokenBuffer + "\".", lineCounter);
 
     return tokens;
 }

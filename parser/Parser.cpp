@@ -1,120 +1,89 @@
 #include "Parser.hpp"
-
-#include <stack>
-
 #include "../error/Error.hpp"
 
-namespace
-    {
-        std::vector<Token> tokens;
-        int current = 0;
+#include <format>
 
-        std::stack<Token> curlyBraceStack;
-
-        Token peek() { return tokens[current]; }
-        Token consume() { return tokens[current++]; }
-        bool isEnd() { return current >= tokens.size(); }
-
-        // Function used to convert a line of tokens into a chain of AST nodes.
-        // May raise an error if unexpected chain of tokens is found.
-        void matchInstruction(const std::vector<Token> &instructionLine, std::vector<AST::Node> &ast)
-        {
-            if (instructionLine.empty())
-                return;
-
-            if (instructionLine.at(0).type == TokenType::VAR)
-            {
-                // Variable declaration.
-            } else if (instructionLine.at(0).type == TokenType::IF)
-            {
-                // If statement.
-            }
-        }
-    }
-
-std::vector<AST::Node> Parser::parse(const std::vector<Token> &tks)
+Parser::Parser(const std::vector<Token> &tokens)
 {
-    tokens = tks;
-    current = 0;
-    std::vector<AST::Node> ast;
-    // Sub vector to copy each instruction at each separation (e.g. semicolon, lbrace).
-    std::vector<Token> instructionLine;
-    while (!isEnd())
-    {
-        // Loop to get sub vectors of instructions.
-        // Clears sub vector once finds ';', '{' or '}'.
+    this->tokens = tokens;
+    counter = 0;
+}
 
-        const Token currentToken = consume();
-        // Keep adding elements until next breaker.
-        if (currentToken.type != TokenType::SEMICOLON && currentToken.type != TokenType::LBRACE && currentToken.type !=
-            TokenType::RBRACE)
-            instructionLine.push_back(currentToken);
-            // Found a breaker.
-        else if (!instructionLine.empty())
+std::vector<std::unique_ptr<AST::Node> > Parser::parse()
+{
+    std::vector<std::unique_ptr<AST::Node> > ast;
+    while (!isEof()) // Root scope for function/struct/enum/global definitions. Everything else raises an error.
+    {
+        const Token currentToken = peek();
+        auto node = std::make_unique<AST::Node>();
+        switch (currentToken.type)
         {
-            // Only allow left braces on certain statements.
-            if (currentToken.type == TokenType::LBRACE)
-            {
-                if (instructionLine.at(0).type == TokenType::IF || instructionLine.at(0).type == TokenType::ELSE ||
-                    instructionLine.at(0).type == TokenType::WHILE || instructionLine.at(0).type == TokenType::FOR ||
-                    instructionLine.at(0).type == TokenType::FUNCTION || instructionLine.at(0).type == TokenType::STRUCT
-                    ||
-                    instructionLine.at(0).type == TokenType::ENUM || instructionLine.at(0).type == TokenType::GLOBAL)
-                {
-                    instructionLine.push_back(currentToken);
-                    curlyBraceStack.push(currentToken);
-                    matchInstruction(instructionLine, ast);
-                    instructionLine.clear();
-                } else
-                {
-                    Error::raise(Error::Phase::Parser, " Unexpected curly braces, invalid scope starter.",
-                                 currentToken.line);
-                }
-            }
-            // Raise error if right braces has an unfinished instruction before it.
-            else if (currentToken.type == TokenType::RBRACE)
-                Error::raise(Error::Phase::Parser, " Unexpected block closing, previous instruction not finished.",
-                             currentToken.line);
-                // Always allow semicolons.
-            else if (currentToken.type == TokenType::SEMICOLON)
-            {
-                instructionLine.push_back(currentToken);
-                matchInstruction(instructionLine, ast);
-                instructionLine.clear();
-            }
-        } else
-        {
-            // Raise error for no scope starter.
-            if (currentToken.type == TokenType::LBRACE)
-                Error::raise(Error::Phase::Parser, " Unexpected curly braces, no scope declaration.",
-                             currentToken.line);
-                // Right braces are only valid as standalone tokens.
-            else if (currentToken.type == TokenType::RBRACE)
-            {
-                if (!curlyBraceStack.empty())
-                {
-                    instructionLine.push_back(currentToken);
-                    matchInstruction(instructionLine, ast);
-                    instructionLine.clear();
-                    curlyBraceStack.pop();
-                } else
-                {
-                    Error::raise(Error::Phase::Parser, " Unexpected curly braces, no previous scope defined.",
-                                 currentToken.line);
-                }
-            }
-            // Always allow semicolons.
-            else if (currentToken.type == TokenType::SEMICOLON)
-            {
-                instructionLine.push_back(currentToken);
-                matchInstruction(instructionLine, ast);
-                instructionLine.clear();
-            }
+            case TokenType::GLOBAL:
+                node->data = handleGlobal();
+                break;
+            case TokenType::FUNCTION:
+                node->data = handleFuncDecl();
+                break;
+            case TokenType::STRUCT:
+                node->data = handleStructDecl();
+                break;
+            case TokenType::ENUM:
+                node->data = handleEnumDecl();
+                break;
+            default:
+                handleRootError(currentToken);
+                break;
         }
+        ast.push_back(std::move(node));
     }
-    // Unclosed curly brace.
-    if (!curlyBraceStack.empty())
-        Error::raise(Error::Phase::Parser, " Unclosed scope.", curlyBraceStack.top().line);
 
     return ast;
+}
+
+AST::GlobalBlock Parser::handleGlobal()
+{
+    const Token lbrace = consume();
+    if (lbrace.type != TokenType::RBRACE)
+    {
+        const std::string message = "Unexpected token at global declaration. Found: '" + lbrace.value +
+                                    "' Expected: '{'";
+        Error::raise(Error::Phase::Parser, message, lbrace.line, "Missing a left brace to open the global scope.");
+    }
+    AST::GlobalBlock globalNode;
+    const Token var = consume();
+    while (var.type != TokenType::RBRACE)
+    {
+        if (var.type != TokenType::VAR)
+        {
+            const std::string message = "Unexpected token at global declaration. Found: '" + lbrace.value +
+                                        "' Expected: 'var'";
+            Error::raise(Error::Phase::Parser, message, lbrace.line,
+                         "Global block only supports variable declarations. Any other action needs to happen in other scopes.");
+        }
+        globalNode.declarations.push_back(handleVarDecl());
+    }
+    return globalNode;
+}
+
+void Parser::handleRootError(const Token &actual)
+{
+    const std::string message = "Unexpected token at root level. Found: '" + actual.value +
+                                "' Expected: A Scope Declaration";
+    std::string tips;
+    if (actual.type == TokenType::VAR)
+    {
+        tips = "Global variables must be declared inside a global{} scope.";
+    } else if (actual.type == TokenType::IF || actual.type == TokenType::WHILE || actual.type == TokenType::FOR ||
+               actual.type == TokenType::RETURN)
+    {
+        tips = "Code flow must be inside of a function. Declare fn main(){} to run.";
+    } else if (actual.type == TokenType::RBRACE)
+    {
+        tips = "Leftover right brace. Check for a missing/extra brace in previous declarations.";
+    } else if (actual.type == TokenType::LBRACE)
+    {
+        tips = "Missing a scope keyword (global, function, struct, enum) before this brace.";
+    }
+
+    Error::raise(Error::Phase::Parser, message, actual.line, tips);
 }

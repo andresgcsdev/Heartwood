@@ -17,7 +17,7 @@ void Error::raise(const Phase phase, const std::string &message, const int line,
     }
     std::cerr << "[" << phaseStr << " Error] on line " << line << ": " << message << std::endl;
     if (!tips.empty())
-        std::cerr << tips << std::endl;
+        std::cerr << "Quick tip: " << tips << std::endl;
 
     std::exit(1);
 }

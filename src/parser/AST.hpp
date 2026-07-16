@@ -37,7 +37,12 @@ namespace AST
             std::unique_ptr<Node> size; // Expression, literal or identifier
         };
 
-        using TypeData = std::variant<PrimitiveType, ArrayType>;
+        struct StructType
+        {
+            Token name;
+        };
+
+        using TypeData = std::variant<PrimitiveType, ArrayType, StructType>;
 
         struct TypeNode
         {
@@ -65,7 +70,7 @@ namespace AST
         struct StructDecl
         {
             Token name; // Identifier
-            std::vector<Parameter> fields;
+            std::vector<VarDecl> fields;
         };
 
         struct EnumDecl
@@ -88,6 +93,8 @@ namespace AST
             std::unique_ptr<Node> left; // Expression, literal or identifier
             std::unique_ptr<Node> right; // Expression, literal or identifier
         };
+
+        // Complex literals - literals that don't map directly into pure data
 
         struct StructLiteral
         {
@@ -123,6 +130,8 @@ namespace AST
             Token callee; // an Identifier
             Token member; // an Identifier
         };
+
+        // Special operation
 
         struct Assign
         {
@@ -192,6 +201,7 @@ namespace AST
             Token where;
         };
 
+        // Polymorphism
 
         using NodeData =
         std::variant<

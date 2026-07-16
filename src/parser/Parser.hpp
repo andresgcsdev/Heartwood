@@ -29,6 +29,9 @@ private:
     // True when at the end of the token list.
     [[nodiscard]] bool isEof() const { return tokens.size() <= counter; }
 
+    // ----- AST Node creation -----
+    // To call each function, the current token at tokens[counter] must match
+    // the first token of the expression. (e.g. to call handleVarDecl() the token at tokens[counter] must be a VAR)
 
     // Maps the AST node for a global variable scope.
     AST::GlobalBlock handleGlobal();
@@ -44,6 +47,9 @@ private:
 
     // Maps the AST node for a variable declaration.
     AST::VarDecl handleVarDecl();
+
+    // Maps the AST node for type attribution.
+    AST::TypeNode handleType();
 
     // Raises errors for unexpected declarations at root scope.
     // Has custom messages for each type of error with tips for the user.

@@ -69,6 +69,7 @@ AST::GlobalBlock Parser::handleGlobal()
                          "Global block only supports variable declarations. Any other action needs to happen in other scopes.");
         }
         globalNode.declarations.push_back(handleVarDecl());
+        consume();
     }
     return globalNode;
 }
@@ -104,8 +105,9 @@ AST::FunctionDef Parser::handleFuncDecl()
     // Guaranteed expression right now: fn -identifier-(
 
     std::vector<AST::Parameter> parameters;
+    bool foundParen = false;
     // Looping for parameters:
-    while (peek().type != TokenType::RPAREN)
+    while (!foundParen)
     {
         AST::Parameter param;
         Token currentToken = consume();
@@ -127,10 +129,66 @@ AST::FunctionDef Parser::handleFuncDecl()
                          "The name for a parameter must be an unreserved word with no symbols.");
         }
         param.name = currentToken;
-        consume();
+        currentToken = consume();
+        if (currentToken.type != TokenType::COLON)
+        {
+            const std::string message = "Unexpected token at function declaration. Found: '" + currentToken.value +
+                                        "' Expected: ':'.";
+            Error::raise(Error::Phase::Parser, message, currentToken.line,
+                         "Missing colon for type declaration.");
+        }
         param.type = handleType();
-
+        currentToken = consume();
+        if (currentToken.type == TokenType::ASSIGN)
+        {
+            consume();
+            param.initializer = handleExpr();
+        }
+        parameters.push_back(std::move(param));
+        currentToken = consume();
+        if (currentToken.type == TokenType::RPAREN)
+            foundParen = true;
+        else if (currentToken.type != TokenType::COMMA)
+        {
+            const std::string message = "Unexpected token at function declaration. Found: '" + currentToken.value +
+                                        "' Expected: ',' or ')'.";
+            Error::raise(Error::Phase::Parser, message, currentToken.line,
+                         "Either missing a comma for next parameter or missing a right paren for closing parameter declaration.");
+        }
     }
+
+    // Guaranteed expression right now: fn -identifier(-param1, param2, ...-)
+
+    // Setting the AST node.
+    AST::FunctionDef func;
+    func.name = funcIdentifier;
+    func.parameters = std::move(parameters);
+
+    // Check if the function has a type or if it is a void one.
+    if (consume().type == TokenType::ARROW)
+    {
+        consume();
+        func.type = handleType();
+        consume();
+    }
+
+    // End of function header.
+    const Token lbrace = peek();
+    if (lbrace.type == TokenType::LBRACE)
+    {
+        func.type = std::nullopt;
+    }
+    else
+    {
+        const std::string message = "Unexpected token at function declaration. Found: '" + lbrace.value +
+                                        "' Expected: '{'.";
+        Error::raise(Error::Phase::Parser, message, lbrace.line,
+                     "Missing arrow for function type declaration.");
+    }
+
+    func.body = handleScope();
+
+    return func;
 }
 
 void Parser::handleRootError(const Token &actual)

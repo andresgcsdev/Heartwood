@@ -50,8 +50,8 @@ var mut count:int = 0;      # mutable
 
 ```hw
 var scores:int[10] = [1, 2, 3, ..., 10];    # fixed size, initialized at declaration.
-var mut log:int[];                   # grows on access, initialized any time.
 var mut groceries:str[2] = ["Milk"];        # fixed size, initialized any time.   
+var mut log:int[];                   # grows on access, initialized any time.
 var mut matrix:int[][] = [[0, 1],[]]; # multi-dimensional arrays, initialized any time. 
 ```
 

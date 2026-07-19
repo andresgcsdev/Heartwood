@@ -56,7 +56,7 @@ private:
     AST::VarDecl handleVarDecl();
 
     // Maps the AST node for type attribution.
-    // Current Token at tokens[counter] must be a COMMA.
+    // Current Token at tokens[counter] must be a type.
     AST::TypeNode handleType();
 
     // Maps the AST node for an expression.

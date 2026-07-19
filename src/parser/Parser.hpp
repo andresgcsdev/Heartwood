@@ -60,7 +60,7 @@ private:
     AST::TypeNode handleType();
 
     // Maps the AST node for an expression.
-    std::unique_ptr<AST::Node> handleExpr();
+    AST::Node handleExpr();
 
     // Raises errors for unexpected declarations at root scope.
     // Has custom messages for each type of error with tips for the user.

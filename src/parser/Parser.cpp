@@ -142,7 +142,7 @@ AST::FunctionDef Parser::handleFuncDecl()
         if (currentToken.type == TokenType::ASSIGN)
         {
             consume();
-            param.initializer = handleExpr();
+            param.initializer = std::make_unique<AST::Node>(handleExpr());
         }
         parameters.push_back(std::move(param));
         currentToken = consume();
@@ -177,11 +177,10 @@ AST::FunctionDef Parser::handleFuncDecl()
     if (lbrace.type == TokenType::LBRACE)
     {
         func.type = std::nullopt;
-    }
-    else
+    } else
     {
         const std::string message = "Unexpected token at function declaration. Found: '" + lbrace.value +
-                                        "' Expected: '{'.";
+                                    "' Expected: '{'.";
         Error::raise(Error::Phase::Parser, message, lbrace.line,
                      "Missing arrow for function type declaration.");
     }
@@ -189,6 +188,94 @@ AST::FunctionDef Parser::handleFuncDecl()
     func.body = handleScope();
 
     return func;
+}
+
+AST::StructDecl Parser::handleStructDecl()
+{
+    const Token structText = peek();
+    if (structText.type != TokenType::STRUCT)
+    {
+        const std::string message = "Unexpected token at struct declaration. Found: '" + structText.value +
+                                    "' Expected: 'struct'.";
+        Error::raise(Error::Phase::Parser, message, structText.line);
+    }
+
+    const Token structIdentifier = consume();
+    if (structIdentifier.type != TokenType::IDENTIFIER)
+    {
+        const std::string message = "Unexpected token at struct declaration. Found: '" + structIdentifier.value +
+                                    "' Expected: An identifier.";
+        Error::raise(Error::Phase::Parser, message, structIdentifier.line,
+                     "Missing a name for the struct.");
+    }
+
+    AST::StructDecl structDecl;
+    structDecl.name = structIdentifier;
+
+    const Token lbrace = consume();
+    if (lbrace.type != TokenType::LBRACE)
+    {
+        const std::string message = "Unexpected token at struct declaration. Found: '" + structIdentifier.value +
+                                    "' Expected: '{'.";
+        Error::raise(Error::Phase::Parser, message, structIdentifier.line,
+                     "Missing a left brace for struct fields definition.");
+    }
+
+    // Guaranteed expression right now: struct -identifier-{
+
+    // Looping through the struct fields.
+    bool foundRBrace = false;
+    std::vector<AST::VarDecl> fields;
+    while (!foundRBrace)
+    {
+        AST::VarDecl varDecl;
+        Token currentToken = consume();
+        if (currentToken.type == TokenType::IDENTIFIER)
+        {
+            const std::string message = "Unexpected token at struct declaration. Found: '" + structIdentifier.value +
+                                    "' Expected: An identifier.";
+            Error::raise(Error::Phase::Parser, message, structIdentifier.line,
+                         "The struct must have at least one field.");
+        }
+        varDecl.name = currentToken;
+
+        currentToken = consume();
+        if (currentToken.type != TokenType::COLON)
+        {
+            const std::string message = "Unexpected token at struct declaration. Found: '" + structIdentifier.value +
+                                    "' Expected: ':'.";
+            Error::raise(Error::Phase::Parser, message, structIdentifier.line,
+                         "Missing colon for field type attribution.");
+        }
+
+        currentToken = consume();
+        varDecl.type = handleType();
+
+        currentToken = consume();
+        if (currentToken.type == TokenType::ASSIGN)
+        {
+            consume();
+            varDecl.initializer = std::make_unique<AST::Node>(handleExpr());
+            consume();
+        }
+        fields.push_back(std::move(varDecl));
+
+        if (currentToken.type == TokenType::RBRACE)
+        {
+            foundRBrace = true;
+        }
+        else if (currentToken.type != TokenType::COMMA)
+        {
+            const std::string message = "Unexpected token at struct declaration. Found: '" + structIdentifier.value +
+                                    "' Expected: ',' or '}'.";
+            Error::raise(Error::Phase::Parser, message, structIdentifier.line,
+                         "Field declarations must be separated by comma.");
+        }
+    }
+
+    structDecl.fields = std::move(fields);
+
+    return structDecl;
 }
 
 void Parser::handleRootError(const Token &actual)

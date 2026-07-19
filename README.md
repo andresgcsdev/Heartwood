@@ -22,9 +22,7 @@ File extension: `.hw`
 
 **Explicit over implicit.** Variables are immutable by default. Mutation requires `mut`. Nothing changes unless you say so.
 
-**Readable operators.** Boolean operators can be written as words (`and`, `or`, `not`, `xor`) or symbols (`&&`, `||`, `!`, `^`), whichever is clearer to you.
-
-**Scoped by design.** Variables live and die within their scope. A `global {}` block exists for data that needs to outlive a function.
+**Simplified Referencing** References are only created through function parameters. Ownership of them can only be borrowed or transferred.
 
 ---
 
@@ -51,8 +49,8 @@ var mut count:int = 0;      # mutable
 ```hw
 var scores:int[10] = [1, 2, 3, ..., 10];    # fixed size, initialized at declaration.
 var mut groceries:str[2] = ["Milk"];        # fixed size, initialized any time.   
-var mut log:int[];                   # grows on access, initialized any time.
-var mut matrix:int[][] = [[0, 1],[]]; # multi-dimensional arrays, initialized any time. 
+var mut log:int[];                          # grows on access, initialized any time.
+var mut matrix:int[][] = [[0, 1],[]];       # multi-dimensional arrays, initialized any time. 
 ```
 
 ### Functions

@@ -66,8 +66,6 @@ namespace
                     return Token(TokenType::STRUCT, token, line);
                 if (token == "enum")
                     return Token(TokenType::ENUM, token, line);
-                if (token == "array")
-                    return Token(TokenType::ARRAY, token, line);
 
                 if (token == "int")
                     return Token(TokenType::TYPE_INT, token, line);

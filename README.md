@@ -129,8 +129,8 @@ for (i:int = 0; i < 10; i++)
 ```hw
 struct Point
 {
-    x:int;
-    y:int;
+    x:int,
+    y:int
 }
 
 var p:Point = {0, 1}; # automatically casts the given struct expression into the variable type at initialization

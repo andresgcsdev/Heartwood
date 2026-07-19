@@ -22,7 +22,7 @@ File extension: `.hw`
 
 **Explicit over implicit.** Variables are immutable by default. Mutation requires `mut`. Nothing changes unless you say so.
 
-**Simplified Referencing** References are only created through function parameters. Ownership of them can only be borrowed or transferred.
+**Simplified Referencing.** References are only created through function parameters. Ownership is only be borrowed or transferred.
 
 ---
 

@@ -19,7 +19,8 @@ enum class TokenType
     SINGLE_OR, SINGLE_AND,
     SPACE,
     COMMENT,
-    ERROR // No match.
+    ERROR, // No match.
+    EoF // End of file
 };
 
 struct Token
@@ -49,5 +50,5 @@ inline bool isOperator(const TokenType &t)
 inline bool isVarType(const TokenType &t)
 {
     return t == TokenType::TYPE_INT || t == TokenType::TYPE_FLOAT || t == TokenType::TYPE_STR ||
-           t == TokenType::TYPE_BOOL || t == TokenType::ARRAY;
+           t == TokenType::TYPE_BOOL;
 }

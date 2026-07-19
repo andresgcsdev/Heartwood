@@ -23,7 +23,16 @@ private:
     std::stack<Token> braceStack;
 
     // Get next token.
-    Token consume() { return tokens.at(++counter); }
+    // Does not go past the last element of the token list.
+    // Returns a sentinel EOF token when consuming at the end of the token list.
+    Token consume()
+    {
+        if (counter + 1 < tokens.size())
+            return tokens.at(++counter);
+
+        return Token{.type = TokenType::EoF, .value = "<End of File>", .line = peek().line};
+    }
+
     // Get current token.
     Token peek() { return tokens.at(counter); }
     // True when at the end of the token list.

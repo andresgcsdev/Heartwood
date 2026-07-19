@@ -63,7 +63,7 @@ namespace AST
         Token name; // identifier
         TypeNode type;
         bool is_mutable = false;
-        std::optional<std::unique_ptr<Node> > initializer;
+        std::optional<std::unique_ptr<Node> > initializer = std::nullopt;
         // Expression, Literal or Identifier - can be nullopt (default initializer)
     };
 
@@ -152,7 +152,7 @@ namespace AST
     {
         std::unique_ptr<Node> condition; // an Expression node
         std::unique_ptr<Node> thenBranch; // a ScopeNode or a single line of instructions
-        std::optional<std::unique_ptr<Node> > elseBranch; // a ScopeNode, a single line of instructions or nullopt
+        std::optional<std::unique_ptr<Node> > elseBranch = std::nullopt; // a ScopeNode, a single line of instructions or nullopt
     };
 
     struct While
@@ -164,8 +164,8 @@ namespace AST
 
     struct For
     {
-        std::optional<VarDecl> localCountVariable;
-        std::optional<std::unique_ptr<Node> > initialAssign; // nullopt if there is a localCountVariable
+        std::optional<VarDecl> localCountVariable = std::nullopt;
+        std::optional<std::unique_ptr<Node> > initialAssign = std::nullopt; // nullopt if there is a localCountVariable
         std::unique_ptr<Node> condition; // an Expression node
         std::unique_ptr<Node> operation; // an Expression node
         std::unique_ptr<Node> body; // a ScopeNode or a single line of instructions

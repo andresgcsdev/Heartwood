@@ -24,7 +24,7 @@ File extension: `.hw`
 
 **Simple Referencing.** References are only created through function parameters. 
 
-**Memory Ownership.** Only borrowed or transferred, no two variables have the same reference.
+**Memory Ownership.** Only borrowed or transferred, no two variables own the same reference.
 
 ---
 

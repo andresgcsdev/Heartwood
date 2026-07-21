@@ -6,7 +6,7 @@
 enum class TokenType
 {
     BIGGER, // Signal that this token can be part of a bigger one.
-    VAR, MUT, REF, FUNCTION, IF, ELSE, WHILE, FOR, GLOBAL, STRUCT, ENUM,
+    VAR, MUT, REF, FUNCTION, IF, ELSE, WHILE, DO, FOR, GLOBAL, STRUCT, ENUM,
     IDENTIFIER,
     TYPE_INT, TYPE_FLOAT, TYPE_STR, TYPE_BOOL,
     LITERAL_INT, LITERAL_FLOAT, LITERAL_STR, LITERAL_BOOL,

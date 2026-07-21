@@ -4,205 +4,207 @@
 #include <cctype>
 
 namespace
+{
+    // Helper for matching Tokens that can be longer than a single character.
+    Token matchLargeToken(const std::string &token, const int line)
     {
-        // Helper for matching Tokens that can be longer than a single character.
-        Token matchLargeToken(const std::string &token, const int line)
+        // Parsing for String Literals.
+        if (token[0] == '"' && token[token.length() - 1] == '"')
         {
-            // Parsing for String Literals.
-            if (token[0] == '"' && token[token.length() - 1] == '"')
+            return Token(TokenType::LITERAL_STR, token, line);
+        }
+        // Parsing for number literals (int or float).
+        // Starting an expression or identifier with a number will result in an error.
+        if (isdigit(token[0]))
+        {
+            bool dotFound = false;
+            for (const auto &c: token)
             {
-                return Token(TokenType::LITERAL_STR, token, line);
+                if (c == '.' && !dotFound)
+                    dotFound = true;
+                else if (!isdigit(c))
+                    return Token(TokenType::ERROR, token, line);
             }
-            // Parsing for number literals (int or float).
-            // Starting an expression or identifier with a number will result in an error.
-            if (isdigit(token[0]))
+            if (!dotFound)
+                return Token(TokenType::LITERAL_INT, token, line);
+
+            return Token(TokenType::LITERAL_FLOAT, token, line);
+        }
+        // Parsing for keywords or Identifiers
+        // Using special characters for identifiers or keywords will result in an error.
+        if (isalpha(token[0]))
+        {
+            for (const auto &c: token)
             {
-                bool dotFound = false;
-                for (const auto &c: token)
-                {
-                    if (c == '.' && !dotFound)
-                        dotFound = true;
-                    else if (!isdigit(c))
-                        return Token(TokenType::ERROR, token, line);
-                }
-                if (!dotFound)
-                    return Token(TokenType::LITERAL_INT, token, line);
-
-                return Token(TokenType::LITERAL_FLOAT, token, line);
+                if (!isalnum(c))
+                    return Token(TokenType::ERROR, token, line);
             }
-            // Parsing for keywords or Identifiers
-            // Using special characters for identifiers or keywords will result in an error.
-            if (isalpha(token[0]))
-            {
-                for (const auto &c: token)
-                {
-                    if (!isalnum(c))
-                        return Token(TokenType::ERROR, token, line);
-                }
-                if (token == "if")
-                    return Token(TokenType::IF, token, line);
-                if (token == "else")
-                    return Token(TokenType::ELSE, token, line);
-                if (token == "while")
-                    return Token(TokenType::WHILE, token, line);
-                if (token == "for")
-                    return Token(TokenType::FOR, token, line);
-                if (token == "break")
-                    return Token(TokenType::BREAK, token, line);
-                if (token == "return")
-                    return Token(TokenType::RETURN, token, line);
+            if (token == "if")
+                return Token(TokenType::IF, token, line);
+            if (token == "else")
+                return Token(TokenType::ELSE, token, line);
+            if (token == "while")
+                return Token(TokenType::WHILE, token, line);
+            if (token == "do")
+                return Token(TokenType::DO, token, line);
+            if (token == "for")
+                return Token(TokenType::FOR, token, line);
+            if (token == "break")
+                return Token(TokenType::BREAK, token, line);
+            if (token == "return")
+                return Token(TokenType::RETURN, token, line);
 
-                if (token == "var")
-                    return Token(TokenType::VAR, token, line);
-                if (token == "mut")
-                    return Token(TokenType::MUT, token, line);
-                if (token == "ref")
-                    return Token(TokenType::REF, token, line);
-                if (token == "fn")
-                    return Token(TokenType::FUNCTION, token, line);
-                if (token == "global")
-                    return Token(TokenType::GLOBAL, token, line);
-                if (token == "struct")
-                    return Token(TokenType::STRUCT, token, line);
-                if (token == "enum")
-                    return Token(TokenType::ENUM, token, line);
+            if (token == "var")
+                return Token(TokenType::VAR, token, line);
+            if (token == "mut")
+                return Token(TokenType::MUT, token, line);
+            if (token == "ref")
+                return Token(TokenType::REF, token, line);
+            if (token == "fn")
+                return Token(TokenType::FUNCTION, token, line);
+            if (token == "global")
+                return Token(TokenType::GLOBAL, token, line);
+            if (token == "struct")
+                return Token(TokenType::STRUCT, token, line);
+            if (token == "enum")
+                return Token(TokenType::ENUM, token, line);
 
-                if (token == "int")
-                    return Token(TokenType::TYPE_INT, token, line);
-                if (token == "float")
-                    return Token(TokenType::TYPE_FLOAT, token, line);
-                if (token == "str")
-                    return Token(TokenType::TYPE_STR, token, line);
-                if (token == "bool")
-                    return Token(TokenType::TYPE_BOOL, token, line);
+            if (token == "int")
+                return Token(TokenType::TYPE_INT, token, line);
+            if (token == "float")
+                return Token(TokenType::TYPE_FLOAT, token, line);
+            if (token == "str")
+                return Token(TokenType::TYPE_STR, token, line);
+            if (token == "bool")
+                return Token(TokenType::TYPE_BOOL, token, line);
 
-                if (token == "true" || token == "false")
-                    return Token(TokenType::LITERAL_BOOL, token, line);
-                if (token == "or")
-                    return Token(TokenType::OR, token, line);
-                if (token == "and")
-                    return Token(TokenType::AND, token, line);
-                if (token == "xor")
-                    return Token(TokenType::XOR, token, line);
-                if (token == "not")
-                    return Token(TokenType::NOT, token, line);
-
-                return Token(TokenType::IDENTIFIER, token, line);
-            }
-
-            // Parsing for boolean operators.
-            if (token == "||")
+            if (token == "true" || token == "false")
+                return Token(TokenType::LITERAL_BOOL, token, line);
+            if (token == "or")
                 return Token(TokenType::OR, token, line);
-            if (token == "&&")
+            if (token == "and")
                 return Token(TokenType::AND, token, line);
+            if (token == "xor")
+                return Token(TokenType::XOR, token, line);
+            if (token == "not")
+                return Token(TokenType::NOT, token, line);
 
-            // Parsing for equality operators that require more than one character to type.
-            if (token == "==")
-                return Token(TokenType::EQUALS, token, line);
-            if (token == "!=")
-                return Token(TokenType::NOT_EQUALS, token, line);
-            if (token == "<=")
-                return Token(TokenType::LESS_EQUALS, token, line);
-            if (token == ">=")
-                return Token(TokenType::GREATER_EQUALS, token, line);
-
-            // Function Type assign.
-            if (token == "->")
-                return Token(TokenType::ARROW, token, line);
-
-            // No match.
-            return Token(TokenType::ERROR, token, line);
+            return Token(TokenType::IDENTIFIER, token, line);
         }
 
-        // Helper function to match special single character tokens.
-        // May return a Token with TokenType::BIGGER,
-        //   which means it can't identify the token based off one character.
-        // When TokenType::BIGGER is found, use matchLargeToken instead.
-        Token matchSingleCharToken(const char c, const int line)
-        {
-            const std::string token(1, c);
+        // Parsing for boolean operators.
+        if (token == "||")
+            return Token(TokenType::OR, token, line);
+        if (token == "&&")
+            return Token(TokenType::AND, token, line);
 
-            switch (c)
-            {
-                // Math operators.
-                case '+':
-                    return Token(TokenType::PLUS, token, line);
-                case '-':
-                    return Token(TokenType::MINUS, token, line);
-                case '*':
-                    return Token(TokenType::MULTIPLY, token, line);
-                case '/':
-                    return Token(TokenType::DIVIDE, token, line);
-                case '%':
-                    return Token(TokenType::MODULO, token, line);
-                // Boolean operators.
-                case '^':
-                    return Token(TokenType::XOR, token, line);
-                case '!':
-                    return Token(TokenType::NOT, token, line);
-                // Magnitude operators.
-                case '<':
-                    return Token(TokenType::LESS, token, line);
-                case '>':
-                    return Token(TokenType::GREATER, token, line);
-                // Expression operators.
-                case '=':
-                    return Token(TokenType::ASSIGN, token, line);
-                case '(':
-                    return Token(TokenType::LPAREN, token, line);
-                case ')':
-                    return Token(TokenType::RPAREN, token, line);
-                case '{':
-                    return Token(TokenType::LBRACE, token, line);
-                case '}':
-                    return Token(TokenType::RBRACE, token, line);
-                case '[':
-                    return Token(TokenType::LBRACK, token, line);
-                case ']':
-                    return Token(TokenType::RBRACK, token, line);
-                case ';':
-                    return Token(TokenType::SEMICOLON, token, line);
-                case ',':
-                    return Token(TokenType::COMMA, token, line);
-                case ':':
-                    return Token(TokenType::COLON, token, line);
-                case ' ':
-                    return Token(TokenType::SPACE, token, line);
-                case '"':
-                    return Token(TokenType::QUOTE, token, line);
-                case '&':
-                    return Token(TokenType::SINGLE_AND, token, line);
-                case '|':
-                    return Token(TokenType::SINGLE_OR, token, line);
-                case '.':
-                    return Token(TokenType::DOT, token, line);
-                default:
-                    break;
-            }
-            // This single character token may form a large one.
-            if (isalnum(c))
-                return Token(TokenType::BIGGER, token, line);
+        // Parsing for equality operators that require more than one character to type.
+        if (token == "==")
+            return Token(TokenType::EQUALS, token, line);
+        if (token == "!=")
+            return Token(TokenType::NOT_EQUALS, token, line);
+        if (token == "<=")
+            return Token(TokenType::LESS_EQUALS, token, line);
+        if (token == ">=")
+            return Token(TokenType::GREATER_EQUALS, token, line);
 
-            return Token(TokenType::ERROR, token, line);
-        }
+        // Function Type assign.
+        if (token == "->")
+            return Token(TokenType::ARROW, token, line);
 
-        // Transforms the given string into a token.
-        // Then appends it to the end of the given token list.
-        // Returns true for successful conversion, false otherwise.
-        bool flushToken(std::string &tokenBuffer, std::vector<Token> &tokens, const int &line)
-        {
-            if (tokenBuffer.empty()) return true;
-
-            const Token prev = matchSingleCharToken(tokenBuffer.back(), line);
-            const Token result = prev.type == TokenType::BIGGER ? matchLargeToken(tokenBuffer, line) : prev;
-
-            if (result.type == TokenType::ERROR) return false;
-
-            tokens.push_back(result);
-            tokenBuffer.clear();
-            return true;
-        }
+        // No match.
+        return Token(TokenType::ERROR, token, line);
     }
+
+    // Helper function to match special single character tokens.
+    // May return a Token with TokenType::BIGGER,
+    //   which means it can't identify the token based off one character.
+    // When TokenType::BIGGER is found, use matchLargeToken instead.
+    Token matchSingleCharToken(const char c, const int line)
+    {
+        const std::string token(1, c);
+
+        switch (c)
+        {
+            // Math operators.
+            case '+':
+                return Token(TokenType::PLUS, token, line);
+            case '-':
+                return Token(TokenType::MINUS, token, line);
+            case '*':
+                return Token(TokenType::MULTIPLY, token, line);
+            case '/':
+                return Token(TokenType::DIVIDE, token, line);
+            case '%':
+                return Token(TokenType::MODULO, token, line);
+            // Boolean operators.
+            case '^':
+                return Token(TokenType::XOR, token, line);
+            case '!':
+                return Token(TokenType::NOT, token, line);
+            // Magnitude operators.
+            case '<':
+                return Token(TokenType::LESS, token, line);
+            case '>':
+                return Token(TokenType::GREATER, token, line);
+            // Expression operators.
+            case '=':
+                return Token(TokenType::ASSIGN, token, line);
+            case '(':
+                return Token(TokenType::LPAREN, token, line);
+            case ')':
+                return Token(TokenType::RPAREN, token, line);
+            case '{':
+                return Token(TokenType::LBRACE, token, line);
+            case '}':
+                return Token(TokenType::RBRACE, token, line);
+            case '[':
+                return Token(TokenType::LBRACK, token, line);
+            case ']':
+                return Token(TokenType::RBRACK, token, line);
+            case ';':
+                return Token(TokenType::SEMICOLON, token, line);
+            case ',':
+                return Token(TokenType::COMMA, token, line);
+            case ':':
+                return Token(TokenType::COLON, token, line);
+            case ' ':
+                return Token(TokenType::SPACE, token, line);
+            case '"':
+                return Token(TokenType::QUOTE, token, line);
+            case '&':
+                return Token(TokenType::SINGLE_AND, token, line);
+            case '|':
+                return Token(TokenType::SINGLE_OR, token, line);
+            case '.':
+                return Token(TokenType::DOT, token, line);
+            default:
+                break;
+        }
+        // This single character token may form a large one.
+        if (isalnum(c))
+            return Token(TokenType::BIGGER, token, line);
+
+        return Token(TokenType::ERROR, token, line);
+    }
+
+    // Transforms the given string into a token.
+    // Then appends it to the end of the given token list.
+    // Returns true for successful conversion, false otherwise.
+    bool flushToken(std::string &tokenBuffer, std::vector<Token> &tokens, const int &line)
+    {
+        if (tokenBuffer.empty()) return true;
+
+        const Token prev = matchSingleCharToken(tokenBuffer.back(), line);
+        const Token result = prev.type == TokenType::BIGGER ? matchLargeToken(tokenBuffer, line) : prev;
+
+        if (result.type == TokenType::ERROR) return false;
+
+        tokens.push_back(result);
+        tokenBuffer.clear();
+        return true;
+    }
+}
 
 std::vector<Token> Lexer::tokenize(const std::string &filepath)
 {
@@ -315,8 +317,7 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath)
             } else if (prevToken.type == TokenType::LITERAL_INT)
             {
                 tokenBuffer.push_back(c);
-            }
-            else
+            } else
             {
                 tokenBuffer.push_back(c);
                 matched = false;

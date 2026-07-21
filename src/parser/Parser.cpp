@@ -177,10 +177,19 @@ AST::FunctionDef Parser::handleFuncDecl()
             foundParen = true;
         else if (currentToken.type != TokenType::COMMA)
         {
-            const std::string message = "Unexpected token at function declaration. Found: '" + currentToken.value +
-                                        "'. Expected: ',' or ')'.";
-            Error::raise(Error::Phase::Parser, message, currentToken.line,
-                         "Either missing a comma for next parameter or missing a right paren for closing parameter declaration.");
+            if (currentToken.type == TokenType::LBRACE)
+            {
+                const std::string message = "Unexpected token at function declaration. Found: '" + currentToken.value +
+                                            "'. Expected: ')'.";
+                Error::raise(Error::Phase::Parser, message, currentToken.line,
+                             "Missing a right paren for closing parameter declaration.");
+            } else
+            {
+                const std::string message = "Unexpected token at function declaration. Found: '" + currentToken.value +
+                                            "'. Expected: ',' or ')'.";
+                Error::raise(Error::Phase::Parser, message, currentToken.line,
+                             "Either missing a comma for next parameter or missing a right paren for closing parameter declaration.");
+            }
         }
         consume();
     }
@@ -213,7 +222,7 @@ AST::FunctionDef Parser::handleFuncDecl()
                      "Missing arrow for function type declaration.");
     }
 
-    func.body = handleScope();
+    func.body = handleScope(ScopeType::FUNCTION, func.name.value);
 
     return func;
 }
@@ -266,9 +275,9 @@ AST::StructDecl Parser::handleStructDecl()
             if (firstRun)
                 Error::raise(Error::Phase::Parser, message, currentToken.line,
                              "The struct must have at least one field.");
-
-            Error::raise(Error::Phase::Parser, message, currentToken.line,
-                         "Missing a name for the next field.");
+            else
+                Error::raise(Error::Phase::Parser, message, currentToken.line,
+                             "Missing a name for the next field.");
         }
         varDecl.name = currentToken;
 
@@ -381,4 +390,81 @@ AST::EnumDecl Parser::handleEnumDecl()
 
     enumDecl.members = std::move(members);
     return enumDecl;
+}
+
+AST::Scope Parser::handleScope(const ScopeType &scopeOf, const std::string &functionName)
+{
+    std::string scopeName;
+    switch (scopeOf)
+    {
+        case ScopeType::FUNCTION:
+            scopeName = "function-'" + functionName + "'";
+            break;
+        case ScopeType::IF:
+            scopeName = "if";
+            break;
+        case ScopeType::WHILE:
+            scopeName = "while";
+            break;
+        case ScopeType::FOR:
+            scopeName = "for";
+            break;
+        case ScopeType::DO:
+            scopeName = "do-while";
+            break;
+        default:
+            scopeName = "error-undefined-scope-type";
+            break;
+    }
+    const Token lbrace = peek();
+    if (lbrace.type != TokenType::LBRACE)
+    {
+        const std::string message = "Unexpected token at " + scopeName + " definition. Found: '" + lbrace.value +
+                                    "'. Expected: '{'.";
+        Error::raise(Error::Phase::Parser, message, lbrace.line);
+    }
+
+    Token currentToken = consume();
+    AST::Scope currentScope;
+    while (currentToken.type != TokenType::EoF && currentToken.type != TokenType::RBRACE)
+    {
+        if (currentToken.type == TokenType::IDENTIFIER)
+        // Either a function call or a variable assign.
+        {
+            currentToken = consume();
+            if (currentToken.type == TokenType::LPAREN)
+                currentScope.statements.push_back(std::make_unique<AST::Node>(handleFnCall()));
+            else if (currentToken.type == TokenType::DOT)
+            {
+                
+            }
+
+        } else if (currentToken.type == TokenType::VAR)
+        // Variable declaration.
+        {
+
+        } else if (currentToken.type == TokenType::IF)
+        // If statement.
+        {
+
+        } else if (currentToken.type == TokenType::WHILE)
+        // While statement.
+        {
+
+        } else if (currentToken.type == TokenType::DO)
+        // Do-while statement.
+        {
+
+        } else if (currentToken.type == TokenType::FOR)
+        // For statement.
+        {
+
+        }
+        else
+        {
+            const std::string message = "Unexpected token at " + scopeName + " definition. Found: '" + lbrace.value +
+                                    "'. Expected: '{'.";
+            Error::raise(Error::Phase::Parser, message, lbrace.line);
+        }
+    }
 }

@@ -38,13 +38,13 @@ inline bool isLiteral(const TokenType &t)
            t == TokenType::LITERAL_BOOL;
 }
 
-inline bool isOperator(const TokenType &t)
+inline bool isBinaryOperator(const TokenType &t)
 {
     return t == TokenType::PLUS || t == TokenType::MINUS || t == TokenType::MULTIPLY ||
            t == TokenType::DIVIDE || t == TokenType::MODULO || t == TokenType::EQUALS ||
            t == TokenType::NOT_EQUALS || t == TokenType::LESS || t == TokenType::LESS_EQUALS ||
            t == TokenType::GREATER || t == TokenType::GREATER_EQUALS || t == TokenType::OR ||
-           t == TokenType::AND || t == TokenType::XOR || t == TokenType::NOT;
+           t == TokenType::AND || t == TokenType::XOR;
 }
 
 inline bool isVarType(const TokenType &t)

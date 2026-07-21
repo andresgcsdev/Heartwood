@@ -172,6 +172,7 @@ namespace
                 return Token(TokenType::SPACE, token, line);
             case '"':
                 return Token(TokenType::QUOTE, token, line);
+            // Special bigger tokens.
             case '&':
                 return Token(TokenType::SINGLE_AND, token, line);
             case '|':
@@ -195,12 +196,19 @@ namespace
     {
         if (tokenBuffer.empty()) return true;
 
-        const Token prev = matchSingleCharToken(tokenBuffer.back(), line);
-        const Token result = prev.type == TokenType::BIGGER ? matchLargeToken(tokenBuffer, line) : prev;
+        Token actual;
+        if (tokenBuffer.size() == 1)
+        {
+            actual = matchSingleCharToken(tokenBuffer[0], line);
+        } else
+        {
+            actual = matchLargeToken(tokenBuffer, line);
+        }
 
-        if (result.type == TokenType::ERROR) return false;
+        if (actual.type == TokenType::ERROR) return false;
+        if (actual.type == TokenType::BIGGER) actual = matchLargeToken(tokenBuffer, line);
 
-        tokens.push_back(result);
+        tokens.push_back(actual);
         tokenBuffer.clear();
         return true;
     }
@@ -323,8 +331,8 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath)
                 matched = false;
             }
         }
-        // Checking for two character tokens that are not text (==, !=, >=, <=, ->).
-        // Previous character at fullToken is always (<, >, =, !, -) or another character that is an identifier.
+        // Checking for two character tokens that are only symbols (==, !=, >=, <=, ->, &&, ||).
+        // Previous character at fullToken is always (<, >, =, !, -, &, |) or another character that is an identifier.
         else if (tokenBuffer.length() == 1)
         {
             const Token prevToken = matchSingleCharToken(tokenBuffer.back(), lineCounter);

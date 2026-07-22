@@ -12,9 +12,9 @@ Parser::Parser(const std::vector<Token> &tokens)
 std::vector<std::unique_ptr<AST::Node> > Parser::parse()
 {
     std::vector<std::unique_ptr<AST::Node> > ast;
-    while (!isEof()) // Root scope for function/struct/enum/global definitions. Everything else raises an error.
+    Token currentToken = peek();
+    while (currentToken.type != TokenType::EoF) // Root scope for function/struct/enum/global definitions. Everything else raises an error.
     {
-        const Token currentToken = peek();
         auto node = std::make_unique<AST::Node>();
         switch (currentToken.type)
         {
@@ -35,6 +35,7 @@ std::vector<std::unique_ptr<AST::Node> > Parser::parse()
                 break;
         }
         ast.push_back(std::move(node));
+        currentToken = consume();
     }
 
     return ast;
@@ -85,8 +86,8 @@ AST::GlobalBlock Parser::handleGlobal()
         Error::raise(Error::Phase::Parser, message, lbrace.line, "Missing a left brace to open the global scope.");
     }
     AST::GlobalBlock globalNode;
-    const Token var = consume();
-    while (var.type != TokenType::RBRACE && !isEof())
+    Token var = consume();
+    while (var.type != TokenType::RBRACE && var.type != TokenType::EoF)
     {
         if (var.type != TokenType::VAR)
         {
@@ -96,7 +97,7 @@ AST::GlobalBlock Parser::handleGlobal()
                          "Global block only supports variable declarations. Any other action needs to happen in other scopes.");
         }
         globalNode.declarations.push_back(handleVarDecl());
-        consume();
+        var = consume();
     }
     return globalNode;
 }
@@ -432,39 +433,48 @@ AST::Scope Parser::handleScope(const ScopeType &scopeOf, const std::string &func
         // Either a function call or a variable assign.
         {
             currentToken = consume();
+            // Function call with no attribution.
             if (currentToken.type == TokenType::LPAREN)
-                currentScope.statements.push_back(std::make_unique<AST::Node>(handleFnCall()));
-            else if (currentToken.type == TokenType::DOT)
             {
-                
+                previous(); // back to the identifier.
+                currentScope.statements.push_back(std::make_unique<AST::Node>(handleFnCall()));
             }
-
+            // Assign to a variable.
+            else
+            {
+                previous();
+                currentScope.statements.push_back(std::make_unique<AST::Node>(handleFnCall()));
+            }
+            currentToken = peek();
         } else if (currentToken.type == TokenType::VAR)
         // Variable declaration.
         {
-
+            currentToken = peek();
         } else if (currentToken.type == TokenType::IF)
         // If statement.
         {
-
+            currentToken = peek();
         } else if (currentToken.type == TokenType::WHILE)
         // While statement.
         {
-
+            currentToken = peek();
         } else if (currentToken.type == TokenType::DO)
         // Do-while statement.
         {
-
+            currentToken = peek();
         } else if (currentToken.type == TokenType::FOR)
         // For statement.
         {
-
+            currentToken = peek();
         }
-        else
+        else if (currentToken.type != TokenType::RBRACE)
         {
-            const std::string message = "Unexpected token at " + scopeName + " definition. Found: '" + lbrace.value +
-                                    "'. Expected: '{'.";
-            Error::raise(Error::Phase::Parser, message, lbrace.line);
+            handleScopeError(currentToken);
         }
+        // Increment until hitting '}'.
+        if (currentToken.type != TokenType::RBRACE)
+            currentToken = consume();
     }
+
+    return currentScope;
 }

@@ -115,8 +115,8 @@ namespace AST
 
     struct MemberAccess
     {
-        std::unique_ptr<Node> object; // Grows from right to left
-        Token member;
+        std::unique_ptr<Node> object;
+        std::unique_ptr<Node> member;
     };
 
     struct ArrayAccess

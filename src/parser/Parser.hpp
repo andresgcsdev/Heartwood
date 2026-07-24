@@ -79,6 +79,31 @@ private:
     // Stops at a '}'.
     AST::Scope handleScope(const ScopeType &scopeOf, const std::string &functionName = "");
 
+    // Maps the AST node for an if statement.
+    // Current Token at tokens[counter] must be an IF.
+    // Stops at a ';' or '}'.
+    AST::If handleIfStatement();
+
+    // Maps the AST node for a while statement.
+    // Current Token at tokens[counter] must be a WHILE.
+    // Stops at a ';' or '}'.
+    AST::While handleWhileStatement();
+
+    // Maps the AST node for a for statement.
+    // Current Token at tokens[counter] must be a FOR.
+    // Stops at a ';' or '}'.
+    AST::For handleForStatement();
+
+    // Maps the AST node for a do-while statement.
+    // Current Token at tokens[counter] must be a DO.
+    // Stops at a ';' or '}'.
+    AST::Do_While handleDoStatement();
+
+    // Maps the AST node for a switch statement.
+    // Current Token at tokens[counter] must be a SWITCH.
+    // Stops at a '}'.
+    AST::Switch handleSwitchStatement();
+
     // Maps the AST node for a variable declaration.
     // Current Token at tokens[counter] must be a VAR.
     // Stops at a ';'.
@@ -86,7 +111,7 @@ private:
 
     // Maps the AST node for type attribution.
     // Current Token at tokens[counter] must be a type.
-    // Stops at the last text representing the type: ']' for arrays and 'int'/'str'/etc for primitives.
+    // Stops at the last token representing the type: ']' for arrays and 'int'/'str'/etc for primitives.
     AST::TypeNode handleType();
 
     // Maps the AST node for an expression.
@@ -109,5 +134,5 @@ private:
 
     // Raises errors for unexpected declarations at function/condition/loop scope.
     // Has custom messages for each type of error with tips for the user.
-    static void handleScopeError(const Token &actual);
+    static void handleScopeError(const Token &actual, const std::string &scopeKind);
 };

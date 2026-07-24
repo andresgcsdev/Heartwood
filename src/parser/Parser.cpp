@@ -13,7 +13,8 @@ std::vector<std::unique_ptr<AST::Node> > Parser::parse()
 {
     std::vector<std::unique_ptr<AST::Node> > ast;
     Token currentToken = peek();
-    while (currentToken.type != TokenType::EoF) // Root scope for function/struct/enum/global definitions. Everything else raises an error.
+    while (currentToken.type != TokenType::EoF)
+    // Root scope for function/struct/enum/global definitions. Everything else raises an error.
     {
         auto node = std::make_unique<AST::Node>();
         switch (currentToken.type)
@@ -417,10 +418,12 @@ AST::Scope Parser::handleScope(const ScopeType &scopeOf, const std::string &func
             scopeName = "error-undefined-scope-type";
             break;
     }
+
     const Token lbrace = peek();
     if (lbrace.type != TokenType::LBRACE)
     {
-        const std::string message = "Unexpected token at " + scopeName + " definition. Found: '" + lbrace.value +
+        const std::string message = "Unexpected token inside " + scopeName + " scope definition. Found: '" + lbrace.
+                                    value +
                                     "'. Expected: '{'.";
         Error::raise(Error::Phase::Parser, message, lbrace.line);
     }
@@ -429,52 +432,99 @@ AST::Scope Parser::handleScope(const ScopeType &scopeOf, const std::string &func
     AST::Scope currentScope;
     while (currentToken.type != TokenType::EoF && currentToken.type != TokenType::RBRACE)
     {
-        if (currentToken.type == TokenType::IDENTIFIER)
-        // Either a function call or a variable assign.
+        switch (currentToken.type)
         {
-            currentToken = consume();
-            // Function call with no attribution.
-            if (currentToken.type == TokenType::LPAREN)
-            {
-                previous(); // back to the identifier.
-                currentScope.statements.push_back(std::make_unique<AST::Node>(handleFnCall()));
-            }
-            // Assign to a variable.
-            else
-            {
-                previous();
-                currentScope.statements.push_back(std::make_unique<AST::Node>(handleFnCall()));
-            }
-            currentToken = peek();
-        } else if (currentToken.type == TokenType::VAR)
-        // Variable declaration.
-        {
-            currentToken = peek();
-        } else if (currentToken.type == TokenType::IF)
-        // If statement.
-        {
-            currentToken = peek();
-        } else if (currentToken.type == TokenType::WHILE)
-        // While statement.
-        {
-            currentToken = peek();
-        } else if (currentToken.type == TokenType::DO)
-        // Do-while statement.
-        {
-            currentToken = peek();
-        } else if (currentToken.type == TokenType::FOR)
-        // For statement.
-        {
-            currentToken = peek();
+            case TokenType::IDENTIFIER:
+                currentToken = consume();
+                // Function call with no attribution.
+                if (currentToken.type == TokenType::LPAREN)
+                {
+                    previous(); // back to the identifier.
+                    currentScope.statements.push_back(std::make_unique<AST::Node>(handleFnCall()));
+                }
+                // Assign to a variable.
+                else
+                {
+                    previous();
+                    currentScope.statements.push_back(std::make_unique<AST::Node>(handleAssign()));
+                }
+                break;
+
+            case TokenType::VAR:
+                currentScope.statements.push_back(std::make_unique<AST::Node>(handleVarDecl()));
+                break;
+
+            case TokenType::IF:
+                currentScope.statements.push_back(std::make_unique<AST::Node>(handleIfStatement()));
+                break;
+
+            case TokenType::WHILE:
+                currentScope.statements.push_back(std::make_unique<AST::Node>(handleWhileStatement()));
+                break;
+
+            case TokenType::FOR:
+                currentScope.statements.push_back(std::make_unique<AST::Node>(handleForStatement()));
+                break;
+
+            case TokenType::DO:
+                currentScope.statements.push_back(std::make_unique<AST::Node>(handleDoStatement()));
+                break;
+
+            case TokenType::SWITCH:
+                currentScope.statements.push_back(std::make_unique<AST::Node>(handleSwitchStatement()));
+                break;
+
+            default:
+                handleScopeError(currentToken, scopeName);
+                break;
         }
-        else if (currentToken.type != TokenType::RBRACE)
-        {
-            handleScopeError(currentToken);
-        }
+        currentToken = peek();
         // Increment until hitting '}'.
         if (currentToken.type != TokenType::RBRACE)
             currentToken = consume();
     }
 
     return currentScope;
+}
+
+void Parser::handleScopeError(const Token &actual, const std::string &scopeKind)
+{
+    const std::string message = "Unexpected token inside " + scopeKind + " definition. Found: '" + actual.value +
+                                "'. Expected: A function call, variable assign, variable declaration or a condition/loop block.";
+    std::string tips;
+    if (actual.type == TokenType::GLOBAL)
+    {
+        // The user is probably trying to create a global scope.
+        tips = "Global scope declaration must be outside of a function.";
+    } else if (actual.type == TokenType::STRUCT)
+    {
+        tips = "Struct declaration must be outside of a function.";
+    } else if (actual.type == TokenType::ENUM)
+    {
+        tips = "Enum declaration must be outside of a function.";
+    } else if (actual.type == TokenType::LBRACE)
+    {
+        // The user probably forgot to use a keyword for creating a scope.
+        tips = "Leftover left brace. Check code above for missing/extra braces.";
+    } else if (actual.type == TokenType::EoF)
+    {
+        // The user probably forgot to use a keyword for creating a scope.
+        tips = "Missing a right brace to close the scope.";
+    } else
+    {
+        tips = "This is an invalid initial instruction token.";
+    }
+
+    Error::raise(Error::Phase::Parser, message, actual.line, tips);
+}
+
+AST::If Parser::handleIfStatement()
+{
+    Token ifText = peek();
+
+    if (ifText.type != TokenType::IF)
+    {
+        const std::string message = "Unexpected token at if statement declaration. Found: '" + ifText.value +
+                                    "'. Expected: 'if'.";
+    }
 }

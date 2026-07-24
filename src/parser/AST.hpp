@@ -10,7 +10,7 @@ namespace AST
 {
     struct Node;
 
-    // Leave nodes - actual data
+    // Leave nodes - actual data.
 
     struct Literal
     {
@@ -22,9 +22,9 @@ namespace AST
         Token name;
     };
 
-    // Data declaration
+    // Data declaration.
 
-    struct TypeNode; // Forward declaration
+    struct TypeNode; // Forward declaration.
 
     struct PrimitiveType
     {
@@ -33,8 +33,8 @@ namespace AST
 
     struct ArrayType
     {
-        std::unique_ptr<TypeNode> element_type; // Primitive or ArrayType
-        std::unique_ptr<Node> size; // Expression, literal or identifier
+        std::unique_ptr<TypeNode> element_type; // Primitive or ArrayType.
+        std::unique_ptr<Node> size; // Expression, literal or identifier.
     };
 
     struct StructType
@@ -51,66 +51,66 @@ namespace AST
 
     struct Parameter
     {
-        Token name; // Identifier
+        Token name; // Identifier.
         TypeNode type;
         bool is_reference = false;
         bool is_mutable = false;
-        std::unique_ptr<Node> initializer; // Expression, literal or identifier
+        std::unique_ptr<Node> initializer; // Expression, literal or identifier.
     };
 
     struct VarDecl
     {
-        Token name; // identifier
+        Token name; // identifier.
         TypeNode type;
         bool is_mutable = false;
         std::optional<std::unique_ptr<Node> > initializer = std::nullopt;
-        // Expression, Literal or Identifier - can be nullopt (default initializer)
+        // Expression, Literal or Identifier - can be nullopt (default initializer).
     };
 
     struct StructDecl
     {
-        Token name; // Identifier
+        Token name; // Identifier.
         std::vector<VarDecl> fields;
     };
 
     struct EnumDecl
     {
-        Token name; // Identifier
-        std::vector<Token> members; // multiple Identifiers
+        Token name; // Identifier.
+        std::vector<Token> members; // multiple Identifiers.
     };
 
-    // Basic expressions - operations on the data
+    // Basic expressions - operations on the data.
 
     struct UnaryExpr
     {
         Token op;
-        std::unique_ptr<Node> operand; // Expression, literal or identifier
+        std::unique_ptr<Node> operand; // Expression, literal or identifier.
     };
 
     struct BinaryExpr
     {
         Token op;
-        std::unique_ptr<Node> left; // Expression, literal or identifier
-        std::unique_ptr<Node> right; // Expression, literal or identifier
+        std::unique_ptr<Node> left; // Expression, literal or identifier.
+        std::unique_ptr<Node> right; // Expression, literal or identifier.
     };
 
-    // Complex literals - literals that don't map directly into pure data
+    // Complex literals - literals that don't map directly into pure data.
 
     struct StructLiteral
     {
-        Token name; // mapping to a struct declaration
+        Token name; // mapping to a struct declaration.
         std::vector<std::pair<Token, std::unique_ptr<Node> > > members;
     };
 
     struct ArrayExpr
     {
-        std::vector<std::unique_ptr<Node> > elements; // Expression, literal or identifier
+        std::vector<std::unique_ptr<Node> > elements; // Expression, literal or identifier.
     };
 
     struct FnCall
     {
-        Token callee; // an Identifier
-        std::vector<std::unique_ptr<Node> > arguments; // Expressions, literals or identifiers
+        Token callee; // an Identifier.
+        std::vector<std::unique_ptr<Node> > arguments; // Expressions, literals or identifiers.
     };
 
     struct MemberAccess
@@ -127,56 +127,74 @@ namespace AST
 
     struct EnumCall
     {
-        Token callee; // an Identifier
-        Token member; // an Identifier
+        Token callee; // an Identifier.
+        Token member; // an Identifier.
     };
 
     // Special operation
 
     struct Assign
     {
-        std::unique_ptr<Node> target; // Can be Identifier, MemberAccess or ArrayAccess
-        std::unique_ptr<Node> value; // Literal, Identifier, Expression
+        std::unique_ptr<Node> target; // Can be Identifier, MemberAccess or ArrayAccess.
+        std::unique_ptr<Node> value; // Literal, Identifier, Expression.
     };
 
-    // Scope - container of data and operations
+    // Scope - container of data and operations.
 
     struct Scope
     {
         std::vector<std::unique_ptr<Node> > statements;
     };
 
-    // Code blocks - expressions that own scopes
+    // Code blocks - expressions that own scopes.
 
     struct If
     {
-        std::unique_ptr<Node> condition; // an Expression node
-        std::unique_ptr<Node> thenBranch; // a ScopeNode or a single line of instructions
-        std::optional<std::unique_ptr<Node> > elseBranch = std::nullopt; // a ScopeNode, a single line of instructions or nullopt
+        std::unique_ptr<Node> condition; // an Expression node.
+        std::unique_ptr<Node> thenBranch; // a ScopeNode or a single line of instructions.
+        std::optional<std::unique_ptr<Node> > elseBranch = std::nullopt; // a ScopeNode, a single line of instructions or nullopt.
+    };
+
+    struct Case
+    {
+        std::unique_ptr<Node> value; //  Simple literal only expression.
+        std::vector<std::unique_ptr<Node> > instructions; // Can't declare variables.
+    };
+
+    struct Switch
+    {
+        std::unique_ptr<Node> variable; // Identifier or member access.
+        std::vector<Case> cases;
     };
 
     struct While
     {
-        std::unique_ptr<Node> condition; // an Expression node
-        std::unique_ptr<Node> body; // a ScopeNode or a single line of instructions
+        std::unique_ptr<Node> condition; // an Expression node.
+        std::unique_ptr<Node> body; // a ScopeNode or a single line of instructions.
+    };
+
+    struct Do_While
+    {
+        std::unique_ptr<Node> body; // a ScopeNode or a single line of instructions.
+        std::unique_ptr<Node> condition; // an Expression node.
     };
 
 
     struct For
     {
         std::optional<VarDecl> localCountVariable = std::nullopt;
-        std::optional<std::unique_ptr<Node> > initialAssign = std::nullopt; // nullopt if there is a localCountVariable
-        std::unique_ptr<Node> condition; // an Expression node
-        std::unique_ptr<Node> operation; // an Expression node
-        std::unique_ptr<Node> body; // a ScopeNode or a single line of instructions
+        std::optional<std::unique_ptr<Node> > initialAssign = std::nullopt; // nullopt if there is a localCountVariable.
+        std::unique_ptr<Node> condition; // an Expression node.
+        std::unique_ptr<Node> operation; // an Expression node.
+        std::unique_ptr<Node> body; // a ScopeNode or a single line of instructions.
     };
 
     struct FunctionDef
     {
-        Token name; // identifier
+        Token name; // identifier.
         std::optional<TypeNode> type;
-        std::vector<Parameter> parameters; // identifier + type + value
-        Scope body; // a ScopeNode
+        std::vector<Parameter> parameters; // identifier + type + value.
+        Scope body; // a ScopeNode.
     };
 
     struct GlobalBlock
@@ -184,11 +202,11 @@ namespace AST
         std::vector<VarDecl> declarations;
     };
 
-    // Exit
+    // Exit.
 
     struct Return
     {
-        std::optional<std::unique_ptr<Node> > value; // Expression, Literal or Identifier - can be nullopt
+        std::optional<std::unique_ptr<Node> > value; // Expression, Literal or Identifier - can be nullopt.
     };
 
     struct Break
@@ -201,13 +219,13 @@ namespace AST
         Token where;
     };
 
-    // Union
+    // Union.
 
     using NodeData =
     std::variant<
         Literal, Identifier, UnaryExpr, FnCall, ArrayAccess,
-        BinaryExpr, Scope, If, Assign, ArrayExpr, GlobalBlock,
-        While, For, FunctionDef, MemberAccess, StructLiteral,
+        BinaryExpr, Scope, If, Assign, ArrayExpr, GlobalBlock, Switch,
+        While, Do_While, For, FunctionDef, MemberAccess, StructLiteral,
         VarDecl, StructDecl, EnumDecl, Return, EnumCall, Break, Continue
     >;
 

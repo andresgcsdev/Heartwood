@@ -32,11 +32,11 @@ namespace
         }
         // Parsing for keywords or Identifiers
         // Using special characters for identifiers or keywords will result in an error.
-        if (isalpha(token[0]))
+        if (isalpha(token[0]) || token[0] == '_')
         {
             for (const auto &c: token)
             {
-                if (!isalnum(c))
+                if (!isalnum(c) && c != '_')
                     return Token(TokenType::ERROR, token, line);
             }
             if (token == "if")
@@ -187,7 +187,7 @@ namespace
                 break;
         }
         // This single character token may form a large one.
-        if (isalnum(c))
+        if (isalnum(c) || c == '_')
             return Token(TokenType::BIGGER, token, line);
 
         return Token(TokenType::ERROR, token, line);

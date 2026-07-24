@@ -43,6 +43,10 @@ namespace
                 return Token(TokenType::IF, token, line);
             if (token == "else")
                 return Token(TokenType::ELSE, token, line);
+            if (token == "switch")
+                return Token(TokenType::SWITCH, token, line);
+            if (token == "case")
+                return Token(TokenType::CASE, token, line);
             if (token == "while")
                 return Token(TokenType::WHILE, token, line);
             if (token == "do")

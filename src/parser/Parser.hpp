@@ -79,6 +79,11 @@ private:
     // Stops at a '}'.
     AST::Scope handleScope(const ScopeType &scopeOf, const std::string &functionName = "");
 
+    // Maps the AST node for a single line instruction inside a conditional or loop block (if/else/while/for)
+    // Current Token at tokens[counter] must be an LPAREN.
+    // Stops at a ';' or '}'.
+    AST::Node handleSingleLiner(const ScopeType &scopeOf);
+
     // Maps the AST node for an if statement.
     // Current Token at tokens[counter] must be an IF.
     // Stops at a ';' or '}'.
@@ -115,7 +120,8 @@ private:
     AST::TypeNode handleType();
 
     // Maps the AST node for an expression.
-    // Stops at a ';'.
+    // Current Token at tokens[counter] must be a literal or an identifier.
+    // Stops at the first token with no operators before it.
     AST::Node handleExpr();
 
     // Maps the AST node for a function call.

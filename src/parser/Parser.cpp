@@ -35,6 +35,7 @@ std::vector<std::unique_ptr<AST::Node> > Parser::parse()
                 handleRootError(currentToken);
                 break;
         }
+        node->startLine = currentToken.line;
         ast.push_back(std::move(node));
         currentToken = consume();
     }
@@ -436,42 +437,42 @@ AST::Scope Parser::handleScope(const ScopeType &scopeOf, const std::string &func
         {
             case TokenType::IDENTIFIER:
                 currentToken = consume();
-                // Function call with no attribution.
+                // Function call.
                 if (currentToken.type == TokenType::LPAREN)
                 {
                     previous(); // back to the identifier.
-                    currentScope.statements.push_back(std::make_unique<AST::Node>(handleFnCall()));
+                    currentScope.statements.push_back(std::make_unique<AST::Node>(handleFnCall(), currentToken.line));
                 }
                 // Assign to a variable.
                 else
                 {
                     previous();
-                    currentScope.statements.push_back(std::make_unique<AST::Node>(handleAssign()));
+                    currentScope.statements.push_back(std::make_unique<AST::Node>(handleAssign(), currentToken.line));
                 }
                 break;
 
             case TokenType::VAR:
-                currentScope.statements.push_back(std::make_unique<AST::Node>(handleVarDecl()));
+                currentScope.statements.push_back(std::make_unique<AST::Node>(handleVarDecl(), currentToken.line));
                 break;
 
             case TokenType::IF:
-                currentScope.statements.push_back(std::make_unique<AST::Node>(handleIfStatement()));
+                currentScope.statements.push_back(std::make_unique<AST::Node>(handleIfStatement(), currentToken.line));
                 break;
 
             case TokenType::WHILE:
-                currentScope.statements.push_back(std::make_unique<AST::Node>(handleWhileStatement()));
+                currentScope.statements.push_back(std::make_unique<AST::Node>(handleWhileStatement(), currentToken.line));
                 break;
 
             case TokenType::FOR:
-                currentScope.statements.push_back(std::make_unique<AST::Node>(handleForStatement()));
+                currentScope.statements.push_back(std::make_unique<AST::Node>(handleForStatement(), currentToken.line));
                 break;
 
             case TokenType::DO:
-                currentScope.statements.push_back(std::make_unique<AST::Node>(handleDoStatement()));
+                currentScope.statements.push_back(std::make_unique<AST::Node>(handleDoStatement(), currentToken.line));
                 break;
 
             case TokenType::SWITCH:
-                currentScope.statements.push_back(std::make_unique<AST::Node>(handleSwitchStatement()));
+                currentScope.statements.push_back(std::make_unique<AST::Node>(handleSwitchStatement(), currentToken.line));
                 break;
 
             default:
@@ -512,19 +513,143 @@ void Parser::handleScopeError(const Token &actual, const std::string &scopeKind)
         tips = "Missing a right brace to close the scope.";
     } else
     {
-        tips = "This is an invalid initial instruction token.";
+        tips = "Invalid initial instruction token.";
     }
 
     Error::raise(Error::Phase::Parser, message, actual.line, tips);
 }
 
+AST::Node Parser::handleSingleLiner(const ScopeType &scopeOf)
+{
+    Token currentToken = peek();
+    if (scopeOf == ScopeType::FUNCTION)
+    {
+        const std::string message = "Unexpected scope type for single line instruction definition.";
+        Error::raise(Error::Phase::Parser, message, currentToken.line,
+                     "Single line instructions aren't allowed for functions.");
+    }
+
+    std::string scopeName;
+    switch (scopeOf)
+    {
+        case ScopeType::IF:
+            scopeName = "if";
+            break;
+        case ScopeType::WHILE:
+            scopeName = "while";
+            break;
+        case ScopeType::FOR:
+            scopeName = "for";
+            break;
+        case ScopeType::DO:
+            scopeName = "do-while";
+            break;
+        default:
+            scopeName = "error-undefined-scope-type";
+            break;
+    }
+
+    switch (currentToken.type)
+    {
+        case TokenType::IDENTIFIER:
+            currentToken = consume();
+            // Function call with no attribution.
+            if (currentToken.type == TokenType::LPAREN)
+            {
+                previous(); // back to the identifier.
+                return {handleFnCall()};
+            }
+            // Assign to a variable.
+            else
+            {
+                previous();
+                return AST::Node(handleAssign(), currentToken.line);
+            }
+            break;
+
+        case TokenType::VAR:
+            return AST::Node(handleVarDecl(), currentToken.line);
+            break;
+
+        case TokenType::IF:
+            return AST::Node(handleIfStatement(), currentToken.line);
+            break;
+
+        case TokenType::WHILE:
+            return AST::Node(handleWhileStatement(), currentToken.line);
+            break;
+
+        case TokenType::FOR:
+            return AST::Node(handleForStatement(), currentToken.line);
+            break;
+
+        case TokenType::DO:
+            return AST::Node(handleDoStatement(), currentToken.line);
+            break;
+
+        case TokenType::SWITCH:
+            return AST::Node(handleSwitchStatement(), currentToken.line);
+            break;
+
+        default:
+            const std::string message = "Unexpected first token at '" + scopeName + "' definition. Found: '" +
+                                        currentToken
+                                        .value + "'. Expected: ";
+            Error::raise(Error::Phase::Parser, message, currentToken.line,
+                         "Invalid initial instruction token.");
+            break;
+    }
+
+    return {}; // Placeholder for future Error module rework.
+}
+
 AST::If Parser::handleIfStatement()
 {
-    Token ifText = peek();
+    const Token ifText = peek();
 
     if (ifText.type != TokenType::IF)
     {
         const std::string message = "Unexpected token at if statement declaration. Found: '" + ifText.value +
                                     "'. Expected: 'if'.";
+        Error::raise(Error::Phase::Parser, message, ifText.line);
+    }
+
+    const Token lparen = consume();
+    if (lparen.type != TokenType::RPAREN)
+    {
+        const std::string message = "Unexpected token at if statement declaration. Found: '" + lparen.value +
+                                    "'. Expected: '('.";
+        Error::raise(Error::Phase::Parser, message, lparen.line,
+                     "Missing left parenthesis for declaring the condition.");
+    }
+    consume();
+
+    AST::If ifNode;
+    ifNode.condition = std::make_unique<AST::Node>(handleExpr()); // Expected to stop at a right paren.
+
+    const Token rparen = peek();
+    if (rparen.type != TokenType::RPAREN)
+    {
+        if (rparen.type == TokenType::LBRACE)
+        {
+            const std::string message = "Unexpected token at if statement declaration. Found: '" + lparen.value +
+                                        "'. Expected: ')'.";
+            Error::raise(Error::Phase::Parser, message, lparen.line,
+                         "Missing a right parenthesis to finish the condition declaration.");
+        } else
+        {
+            const std::string message = "Unexpected token at if statement declaration. Found: '" + lparen.value +
+                                        "'. Expected: An operator.";
+            Error::raise(Error::Phase::Parser, message, lparen.line,
+                         "Missing an operator between the elements of the expression.");
+        }
+    }
+
+    const Token lbrace = consume();
+    if (lbrace.type == TokenType::LBRACE)
+        ifNode.thenBranch = std::make_unique<AST::Node>(handleScope(ScopeType::IF));
+    else
+    {
+        ifNode.thenBranch = std::make_unique<AST::Node>(handleSingleLiner(ScopeType::IF));
     }
 }

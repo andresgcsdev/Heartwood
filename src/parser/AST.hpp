@@ -219,11 +219,18 @@ namespace AST
         Token where;
     };
 
+    // Error.
+
+    struct BadExpression
+    {
+        std::string error;
+    };
+
     // Union.
 
     using NodeData =
     std::variant<
-        Literal, Identifier, UnaryExpr, FnCall, ArrayAccess,
+        Literal, Identifier, UnaryExpr, FnCall, ArrayAccess, BadExpression,
         BinaryExpr, Scope, If, Assign, ArrayExpr, GlobalBlock, Switch,
         While, Do_While, For, FunctionDef, MemberAccess, StructLiteral,
         VarDecl, StructDecl, EnumDecl, Return, EnumCall, Break, Continue
@@ -231,6 +238,7 @@ namespace AST
 
     struct Node
     {
-        NodeData data;
+        NodeData data; // Tree of instructions at this line.
+        int startLine = -1; // Line of the root node.
     };
 }

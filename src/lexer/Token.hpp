@@ -21,14 +21,15 @@ enum class TokenType
     SPACE,
     COMMENT,
     ERROR, // No match.
+    null, // not initialized.
     EoF // End of file
 };
 
 struct Token
 {
-    TokenType type;
+    TokenType type = TokenType::null;
     std::string value; // For identifiers or literals.
-    int line; // For better error messages.
+    int line = -1; // For better error messages.
 };
 
 // Basic generalization functions:

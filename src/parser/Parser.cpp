@@ -477,6 +477,11 @@ AST::Scope Parser::handleScope(const ScopeType &scopeOf, const std::string &func
                     std::make_unique<AST::Node>(handleSwitchStatement(), currentToken.line));
                 break;
 
+            case TokenType::RETURN:
+                currentScope.statements.push_back(
+                    std::make_unique<AST::Node>(handleReturnStatement(), currentToken.line));
+                break;
+
             default:
                 handleScopeError(currentToken, scopeName);
                 break;
@@ -566,7 +571,7 @@ AST::Node Parser::handleSingleLiner(const ScopeType &scopeOf)
             if (currentToken.type == TokenType::LPAREN)
             {
                 previous(); // back to the identifier.
-                return {handleFnCall()};
+                return AST::Node(handleFnCall(), currentToken.line);
             }
             // Assign to a variable.
             else
@@ -600,16 +605,33 @@ AST::Node Parser::handleSingleLiner(const ScopeType &scopeOf)
             return AST::Node(handleSwitchStatement(), currentToken.line);
             break;
 
+        case TokenType::RETURN:
+            return AST::Node(handleReturnStatement(), currentToken.line));
+            break;
+
+        case TokenType::BREAK:
+            if (scopeOf == ScopeType::FOR || scopeOf == ScopeType::DO || scopeOf == ScopeType::WHILE)
+                return AST::Node(handleBreakStatement(), currentToken.line);
+            else
+            {
+                const std::string message = "Unexpected first token at '" + scopeName + "' definition. Found: '" +
+                                        currentToken
+                                        .value + "'. Expected: A function call, variable assign, variable declaration or a condition/loop block.";
+                Error::raise(Error::Phase::Parser, message, currentToken.line,
+                             "Must be inside of a loop block to use the 'break' keyword.");
+            }
+            break;
+
         default:
             const std::string message = "Unexpected first token at '" + scopeName + "' definition. Found: '" +
                                         currentToken
-                                        .value + "'. Expected: ";
+                                        .value + "'. Expected: A function call, variable assign, variable declaration or a condition/loop block.";
             Error::raise(Error::Phase::Parser, message, currentToken.line,
                          "Invalid initial instruction token.");
             break;
     }
 
-    return {}; // Placeholder for future Error module rework.
+    return AST::Node(AST::BadExpression(), currentToken.line);
 }
 
 AST::If Parser::handleIfStatement()
@@ -656,9 +678,8 @@ AST::If Parser::handleIfStatement()
 
     const Token lbrace = consume();
     if (lbrace.type == TokenType::LBRACE)
-        ifNode.thenBranch = std::make_unique<AST::Node>(handleScope(ScopeType::IF));
+        ifNode.thenBranch = std::make_unique<AST::Node>(handleScope(ScopeType::IF), lbrace.line);
     else
-    {
         ifNode.thenBranch = std::make_unique<AST::Node>(handleSingleLiner(ScopeType::IF));
-    }
+    // Stopped at either a right brace or a semi-colon.
 }

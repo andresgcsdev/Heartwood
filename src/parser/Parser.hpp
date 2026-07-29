@@ -114,6 +114,11 @@ private:
     // Stops at a ';'.
     AST::VarDecl handleVarDecl();
 
+    // Maps the AST node for a return statement.
+    // Current Token at tokens[counter] must be a RETURN.
+    // Stops at a ';'.
+    AST::Return handleReturnStatement();
+
     // Maps the AST node for type attribution.
     // Current Token at tokens[counter] must be a type.
     // Stops at the last token representing the type: ']' for arrays and 'int'/'str'/etc for primitives.

@@ -14,7 +14,7 @@ void ErrorList::add(const ErrorPhase &phase, const std::string &message, const T
     errors.push_back(e);
 }
 
-void ErrorList::raise(const ErrorPhase &phase)
+void ErrorList::raiseAll(const ErrorPhase &phase)
 {
     std::string masterPhaseStr;
     switch (phase)
@@ -54,6 +54,27 @@ void ErrorList::raise(const ErrorPhase &phase)
             std::cerr << tips << std::endl;
     }
     errors.clear();
+
+    std::exit(1);
+}
+
+void ErrorList::raiseThis(const ErrorNode &node)
+{
+    std::string phaseStr;
+    switch (node.phase)
+    {
+        case ErrorPhase::Lexer: phaseStr = "Lexer";
+            break;
+        case ErrorPhase::Parser: phaseStr = "Parser";
+            break;
+        case ErrorPhase::Semantic: phaseStr = "Semantic analysis";
+            break;
+        case ErrorPhase::Runtime: phaseStr = "Runtime";
+            break;
+    }
+    std::cerr << "[" << phaseStr << " Error] on line " << node.token.line << ": " << node.message << std::endl;
+    if (!node.tips.empty())
+        std::cerr << node.tips << std::endl;
 
     std::exit(1);
 }

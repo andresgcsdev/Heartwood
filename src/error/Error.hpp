@@ -31,7 +31,10 @@ public:
 
     // Prints out in the terminal all of the current errors in the list.
     // First-in First-out order.
-    void raise(const ErrorPhase &phase);
+    void raiseAll(const ErrorPhase &phase);
+
+    // Prints out in the terminal the given error.
+    static void raiseThis(const ErrorNode &node);
 
 private:
     std::vector<ErrorNode> errors;

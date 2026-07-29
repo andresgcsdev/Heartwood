@@ -460,7 +460,8 @@ AST::Scope Parser::handleScope(const ScopeType &scopeOf, const std::string &func
                 break;
 
             case TokenType::WHILE:
-                currentScope.statements.push_back(std::make_unique<AST::Node>(handleWhileStatement(), currentToken.line));
+                currentScope.statements.push_back(
+                    std::make_unique<AST::Node>(handleWhileStatement(), currentToken.line));
                 break;
 
             case TokenType::FOR:
@@ -472,7 +473,8 @@ AST::Scope Parser::handleScope(const ScopeType &scopeOf, const std::string &func
                 break;
 
             case TokenType::SWITCH:
-                currentScope.statements.push_back(std::make_unique<AST::Node>(handleSwitchStatement(), currentToken.line));
+                currentScope.statements.push_back(
+                    std::make_unique<AST::Node>(handleSwitchStatement(), currentToken.line));
                 break;
 
             default:
@@ -493,27 +495,34 @@ void Parser::handleScopeError(const Token &actual, const std::string &scopeKind)
     const std::string message = "Unexpected token inside " + scopeKind + " definition. Found: '" + actual.value +
                                 "'. Expected: A function call, variable assign, variable declaration or a condition/loop block.";
     std::string tips;
-    if (actual.type == TokenType::GLOBAL)
+    switch (actual.type)
     {
-        // The user is probably trying to create a global scope.
-        tips = "Global scope declaration must be outside of a function.";
-    } else if (actual.type == TokenType::STRUCT)
-    {
-        tips = "Struct declaration must be outside of a function.";
-    } else if (actual.type == TokenType::ENUM)
-    {
-        tips = "Enum declaration must be outside of a function.";
-    } else if (actual.type == TokenType::LBRACE)
-    {
-        // The user probably forgot to use a keyword for creating a scope.
-        tips = "Leftover left brace. Check code above for missing/extra braces.";
-    } else if (actual.type == TokenType::EoF)
-    {
-        // The user probably forgot to use a keyword for creating a scope.
-        tips = "Missing a right brace to close the scope.";
-    } else
-    {
-        tips = "Invalid initial instruction token.";
+        case TokenType::GLOBAL:
+            // The user is probably trying to create a global scope.
+            tips = "Global scope declaration must be outside of a function.";
+            break;
+
+        case TokenType::STRUCT:
+            tips = "Struct declaration must be outside of a function.";
+            break;
+
+        case TokenType::ENUM:
+            tips = "Enum declaration must be outside of a function.";
+            break;
+
+        case TokenType::LBRACE:
+            // The user probably forgot to use a keyword for creating a scope.
+            tips = "Leftover left brace. Check code above for missing/extra braces.";
+            break;
+
+        case TokenType::EoF:
+            // The user probably forgot to use a keyword for creating a scope.
+            tips = "Missing a right brace to close the scope.";
+            break;
+
+        default:
+            tips = "Invalid initial instruction token.";
+            break;
     }
 
     Error::raise(Error::Phase::Parser, message, actual.line, tips);

@@ -2,19 +2,22 @@
 #include <iostream>
 
 
-void ErrorList::add(const ErrorPhase &phase, const std::string &message, const Token &token, const std::string &tips)
+void ErrorList::add(const ErrorPhase phase, const std::string &message, const int line, const bool isEoF, const std::string &tips)
 {
-    auto e = ErrorNode(phase, token, message, tips);
-    if (e.token.type == TokenType::EoF)
-        e.tips = "File ended without completing this previous instruction. Here's what's probably missing or wrong: " +
-                 e.tips;
-    else
-        e.tips = "What might be wrong: " + e.tips;
+    auto e = ErrorNode(phase, line, message, tips);
+    if (!tips.empty())
+    {
+        if (isEoF)
+            e.tips = "File ended without completing this previous instruction. Here's what's probably missing or wrong: " +
+                     e.tips;
+        else
+            e.tips = "What might be wrong: " + e.tips;
+    }
 
     errors.push_back(e);
 }
 
-void ErrorList::raiseAll(const ErrorPhase &phase)
+void ErrorList::raiseAll(const ErrorPhase phase)
 {
     std::string masterPhaseStr;
     switch (phase)
@@ -35,7 +38,7 @@ void ErrorList::raiseAll(const ErrorPhase &phase)
         return;
     }
 
-    for (const auto &[nodePhase, token, message, tips]: errors)
+    for (const auto &[nodePhase, line, message, tips]: errors)
     {
         std::string phaseStr;
         switch (nodePhase)
@@ -49,11 +52,10 @@ void ErrorList::raiseAll(const ErrorPhase &phase)
             case ErrorPhase::Runtime: phaseStr = "Runtime";
                 break;
         }
-        std::cerr << "[" << phaseStr << " Error] on line " << token.line << ": " << message << std::endl;
+        std::cerr << "[" << phaseStr << " Error] on line " << line << ": " << message << std::endl;
         if (!tips.empty())
             std::cerr << tips << std::endl;
     }
-    errors.clear();
 
     std::exit(1);
 }
@@ -72,7 +74,7 @@ void ErrorList::raiseThis(const ErrorNode &node)
         case ErrorPhase::Runtime: phaseStr = "Runtime";
             break;
     }
-    std::cerr << "[" << phaseStr << " Error] on line " << node.token.line << ": " << node.message << std::endl;
+    std::cerr << "[" << phaseStr << " Error] on line " << node.line << ": " << node.message << std::endl;
     if (!node.tips.empty())
         std::cerr << node.tips << std::endl;
 

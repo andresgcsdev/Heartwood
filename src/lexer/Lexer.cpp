@@ -196,20 +196,24 @@ namespace
     // Transforms the given string into a token.
     // Then appends it to the end of the given token list.
     // Returns true for successful conversion, false otherwise.
+    // Does not clear the tokenBuffer if it finds an invalid token.
     bool flushToken(std::string &tokenBuffer, std::vector<Token> &tokens, const int &line)
     {
         if (tokenBuffer.empty()) return true;
 
         Token actual;
         if (tokenBuffer.size() == 1)
-        {
             actual = matchSingleCharToken(tokenBuffer[0], line);
-        } else
-        {
+        else
             actual = matchLargeToken(tokenBuffer, line);
+
+
+        if (actual.type == TokenType::ERROR)
+        {
+            tokens.push_back(Token(TokenType::ERROR, tokenBuffer, line));
+            return false;
         }
 
-        if (actual.type == TokenType::ERROR) return false;
         if (actual.type == TokenType::BIGGER) actual = matchLargeToken(tokenBuffer, line);
 
         tokens.push_back(actual);
@@ -218,12 +222,12 @@ namespace
     }
 }
 
-std::vector<Token> Lexer::tokenize(const std::string &filepath)
+std::vector<Token> Lexer::tokenize(const std::string &filepath, ErrorList &errors)
 {
     std::ifstream file(filepath);
     if (!file.is_open())
     {
-        Error::raise(Error::Phase::Lexer, "File not found", -1);
+        ErrorList::raiseThis(ErrorNode(ErrorPhase::Lexer, -1, "File not found"));
     }
     std::vector<Token> tokens;
     char c;
@@ -325,7 +329,7 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath)
             {
                 tokens.push_back(prevToken);
                 tokenBuffer.clear();
-                tokens.push_back(Token{TokenType::DOT, ".", lineCounter});
+                tokens.push_back(Token(TokenType::DOT, ".", lineCounter));
             } else if (prevToken.type == TokenType::LITERAL_INT)
             {
                 tokenBuffer.push_back(c);
@@ -347,19 +351,19 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath)
                 {
                     case TokenType::LESS:
                         tokenBuffer.clear();
-                        tokens.push_back(Token{TokenType::LESS_EQUALS, "<=", lineCounter});
+                        tokens.push_back(Token(TokenType::LESS_EQUALS, "<=", lineCounter));
                         break;
                     case TokenType::GREATER:
                         tokenBuffer.clear();
-                        tokens.push_back(Token{TokenType::GREATER_EQUALS, ">=", lineCounter});
+                        tokens.push_back(Token(TokenType::GREATER_EQUALS, ">=", lineCounter));
                         break;
                     case TokenType::ASSIGN:
                         tokenBuffer.clear();
-                        tokens.push_back(Token{TokenType::EQUALS, "==", lineCounter});
+                        tokens.push_back(Token(TokenType::EQUALS, "==", lineCounter));
                         break;
                     case TokenType::NOT:
                         tokenBuffer.clear();
-                        tokens.push_back(Token{TokenType::NOT_EQUALS, "!=", lineCounter});
+                        tokens.push_back(Token(TokenType::NOT_EQUALS, "!=", lineCounter));
                         break;
                     default:
                         // Begins with something other than the expected tokens. Probably a separate token or identifier.
@@ -378,7 +382,7 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath)
             else if (currentToken.type == TokenType::GREATER && prevToken.type == TokenType::MINUS)
             {
                 tokenBuffer.clear();
-                tokens.push_back(Token{TokenType::ARROW, "->", lineCounter});
+                tokens.push_back(Token(TokenType::ARROW, "->", lineCounter));
             }
             // Looking for &&
             else if (currentToken.type == TokenType::SINGLE_AND && prevToken.type == TokenType::SINGLE_AND)
@@ -438,9 +442,7 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath)
             } else
             {
                 // Current token is not related to previous token.
-                Token prevToken = matchLargeToken(tokenBuffer, lineCounter);
-                tokenBuffer.clear();
-                tokens.push_back(prevToken);
+                matched = flushToken(tokenBuffer, tokens, lineCounter);
                 // Checking for bigger token possibility.
                 if (currentToken.type == TokenType::LESS || currentToken.type == TokenType::GREATER ||
                     currentToken.type == TokenType::ASSIGN || currentToken.type == TokenType::NOT || currentToken.type
@@ -454,20 +456,23 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath)
         }
         if (!matched)
         {
-            file.close();
             if (inString)
-                Error::raise(Error::Phase::Lexer, "Unterminated string literal", lineCounter);
+                errors.add(ErrorPhase::Lexer, "Unterminated string literal", lineCounter);
             else
-                Error::raise(Error::Phase::Lexer, "Invalid token \"" + tokenBuffer + "\".", lineCounter);
+                errors.add(ErrorPhase::Lexer, "Invalid token \"" + tokenBuffer + "\".", lineCounter);
+
+            tokenBuffer.clear();
         }
     }
     file.close();
 
     // Flushing anything that remained in the buffer.
     if (inString)
-        Error::raise(Error::Phase::Lexer, "Unterminated string literal", lineCounter);
+        errors.add(ErrorPhase::Lexer, "Unterminated string literal", lineCounter);
     if (!tokenBuffer.empty() && !flushToken(tokenBuffer, tokens, lineCounter))
-        Error::raise(Error::Phase::Lexer, "Invalid token \"" + tokenBuffer + "\".", lineCounter);
+        errors.add(ErrorPhase::Lexer, "Invalid token \"" + tokenBuffer + "\".", lineCounter);
+
+    tokens.push_back(Token(TokenType::EoF, "", lineCounter));
 
     return tokens;
 }

@@ -4,13 +4,14 @@
 #include <vector>
 
 #include "../lexer/Token.hpp"
+#include "../error/Error.hpp"
 #include "AST.hpp"
 
 // Converts a list of Tokens into readable instructions for the evaluator to consume.
 class Parser
 {
 public:
-    // No actual changes are made to the token list, so we borrow a constant reference
+    // No actual changes are made to the token list, so we borrow a constant reference.
     explicit Parser(const std::vector<Token> &tokens);
 
     // Returns the root of the Abstract Syntax Tree of the given token list.
@@ -21,6 +22,7 @@ private:
     std::vector<Token> tokens;
     int counter = 0;
     std::stack<Token> braceStack;
+    ErrorList errors;
 
     enum class ScopeType
     {
@@ -31,26 +33,74 @@ private:
         DO
     };
 
-    // Get next token.
-    // Does not go past the last element of the token list.
-    // Returns a sentinel EOF token when consuming at the end of the token list.
-    Token consume()
-    {
-        if (counter + 1 < tokens.size())
-            return tokens.at(++counter);
+    // ----- Token list query -----
 
-        return Token{.type = TokenType::EoF, .value = "<End of File>", .line = peek().line};
+    // True when at the end of the token list.
+    [[nodiscard]] bool isEof() const { return peek().type == TokenType::EoF; }
+
+    // Advances the counter.
+    // Returns the current token, then increments.
+    // Does not go past the end of the token list.
+    Token advance()
+    {
+        const Token t = peek();
+        if (!isEof())
+            counter++;
+
+        return t;
     }
 
     // Get current token.
-    Token peek() { return tokens.at(counter); }
+    [[nodiscard]] Token peek() const { return tokens.at(counter); }
 
-    // Get previous token.
-    // May return an error if counter < 0.
-    Token previous() {return tokens.at(--counter);}
+    // Get next token without advancing the counter.
+    [[nodiscard]] Token peekNext() const
+    {
+        if (!isEof())
+            return tokens.at(counter + 1);
 
-    // True when at the end of the token list.
-    [[nodiscard]] bool isEof() const { return tokens.size() <= counter; }
+        return tokens.back();
+    }
+
+    // Decreases the counter.
+    // Returns the current token, then decreases.
+    // Does not go out of bounds.
+    Token previous()
+    {
+        const Token t = peek();
+        if (counter > 0)
+            counter--;
+
+        return t;
+    }
+
+    // Checks if the current token at peek() is of the given type.
+    [[nodiscard]] bool check(const TokenType type) const { return peek().type == type; }
+
+    // Advances the counter and checks if the current token is of the given type.
+    // Returns true if the check succeeds, false otherwise.
+    bool match(const TokenType type)
+    {
+        const bool r = check(type);
+        if (r) advance();
+        return r;
+    }
+
+    // Checks if the current token is of the given type, then advances the counter.
+    // If the check fails, raises an error with the given message and tip.
+    // Returns the current token if the check succeeds, otherwise a sentinel token.
+    Token expect(const TokenType expected, const std::string &err_message, const std::string &tip = "")
+    {
+        if (check(expected))
+        {
+            return advance();
+        }
+
+        const Token actual = peek();
+        errors.add(ErrorPhase::Parser, err_message, actual.line, actual.type == TokenType::EoF, tip);
+
+        return Token(expected, "", actual.line);
+    }
 
     // ----- AST Node creation -----
 
@@ -139,11 +189,13 @@ private:
     // Stops at a ';'.
     AST::Assign handleAssign();
 
+    // ----- General Errors -----
+
     // Raises errors for unexpected declarations at root scope.
     // Has custom messages for each type of error with tips for the user.
-    static void handleRootError(const Token &actual);
+    void handleRootError(const Token &actual);
 
     // Raises errors for unexpected declarations at function/condition/loop scope.
     // Has custom messages for each type of error with tips for the user.
-    static void handleScopeError(const Token &actual, const std::string &scopeKind);
+    void handleScopeError(const Token &actual, const std::string &scopeKind);
 };

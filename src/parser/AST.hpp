@@ -223,7 +223,7 @@ namespace AST
 
     struct BadExpression
     {
-        std::string error;
+        Token where;
     };
 
     // Union.

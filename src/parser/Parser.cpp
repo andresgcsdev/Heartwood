@@ -10,6 +10,99 @@ Parser::Parser(const std::vector<Token> &tokens)
     errors = {};
 }
 
+void Parser::sync(const SyncContext context)
+{
+    if (context == SyncContext::ROOT)
+    {
+        while (peek().type != TokenType::EoF && peek().type != TokenType::GLOBAL && peek().type != TokenType::FUNCTION
+               && peek().type != TokenType::STRUCT && peek().type != TokenType::ENUM)
+            advance();
+        return;
+    }
+
+    if (context == SyncContext::BLOCK)
+    {
+        while (peek().type != TokenType::EoF && peek().type != TokenType::RBRACE && peek().type != TokenType::IDENTIFIER
+               && peek().type != TokenType::VAR && peek().type != TokenType::IF && peek().type != TokenType::WHILE
+               && peek().type != TokenType::FOR && peek().type != TokenType::DO && peek().type != TokenType::SWITCH
+               && peek().type != TokenType::RETURN)
+            advance();
+        return;
+    }
+
+    if (context == SyncContext::FUNC_PARAM)
+    {
+        while (peek().type != TokenType::EoF && peek().type != TokenType::RPAREN && peek().type != TokenType::COMMA
+               && peek().type != TokenType::ARROW && peek().type != TokenType::LBRACE &&
+               //Bailout stop
+               !(peek().type == TokenType::VAR || peek().type == TokenType::RETURN
+                 || peek().type == TokenType::IF || peek().type == TokenType::WHILE
+                 || peek().type == TokenType::FOR || peek().type == TokenType::DO
+                 || peek().type == TokenType::SWITCH || peek().type == TokenType::BREAK
+                 || peek().type == TokenType::CONTINUE || peek().type == TokenType::FUNCTION
+                 || peek().type == TokenType::STRUCT || peek().type == TokenType::ENUM
+                 || peek().type == TokenType::GLOBAL || peek().type == TokenType::RBRACE)
+        )
+            advance();
+        return;
+    }
+
+    if (context == SyncContext::GLOBAL_VAR)
+    {
+        while (peek().type != TokenType::EoF && peek().type != TokenType::RBRACE && peek().type != TokenType::SEMICOLON
+               && peek().type != TokenType::VAR)
+            advance();
+        return;
+    }
+
+    if (context == SyncContext::ENUM_MEMBER || context == SyncContext::STRUCT_FIELD)
+    {
+        while (peek().type != TokenType::EoF && peek().type != TokenType::RBRACE && peek().type != TokenType::COMMA)
+            advance();
+        return;
+    }
+
+    if (context == SyncContext::CONDITION)
+    {
+        while (peek().type != TokenType::EoF && peek().type != TokenType::RPAREN && peek().type != TokenType::LBRACE &&
+               //Bailout stop
+               !(peek().type == TokenType::VAR || peek().type == TokenType::RETURN
+                 || peek().type == TokenType::IF || peek().type == TokenType::WHILE
+                 || peek().type == TokenType::FOR || peek().type == TokenType::DO
+                 || peek().type == TokenType::SWITCH || peek().type == TokenType::BREAK
+                 || peek().type == TokenType::CONTINUE || peek().type == TokenType::FUNCTION
+                 || peek().type == TokenType::STRUCT || peek().type == TokenType::ENUM
+                 || peek().type == TokenType::GLOBAL || peek().type == TokenType::RBRACE)
+        )
+            advance();
+        return;
+    }
+
+    if (context == SyncContext::SWITCH_CASE)
+    {
+        while (peek().type != TokenType::EoF && peek().type != TokenType::RBRACE && peek().type != TokenType::COLON)
+            advance();
+        return;
+    }
+
+    if (context == SyncContext::FOR_PARAM)
+    {
+        while (peek().type != TokenType::EoF && peek().type != TokenType::RPAREN && peek().type != TokenType::SEMICOLON
+               && peek().type != TokenType::LBRACE &&
+               //Bailout stop
+               !(peek().type == TokenType::VAR || peek().type == TokenType::RETURN
+                 || peek().type == TokenType::IF || peek().type == TokenType::WHILE
+                 || peek().type == TokenType::SWITCH || peek().type == TokenType::BREAK
+                 || peek().type == TokenType::CONTINUE || peek().type == TokenType::FUNCTION
+                 || peek().type == TokenType::STRUCT || peek().type == TokenType::ENUM
+                 || peek().type == TokenType::GLOBAL || peek().type == TokenType::RBRACE
+                 || peek().type == TokenType::DO)
+        )
+            advance();
+        return;
+    }
+}
+
 std::vector<std::unique_ptr<AST::Node> > Parser::parse()
 {
     std::vector<std::unique_ptr<AST::Node> > ast;
@@ -34,6 +127,7 @@ std::vector<std::unique_ptr<AST::Node> > Parser::parse()
                 break;
             default:
                 handleRootError(currentToken);
+                sync(SyncContext::ROOT);
                 break;
         }
         node->startLine = currentToken.line;
@@ -206,14 +300,13 @@ AST::FunctionDef Parser::handleFuncDecl()
         func.type = handleType();
     }
 
-    if (!check(TokenType::LBRACE))
-    {
-        expect(
-            TokenType::LBRACE,
-            "Unexpected token at function declaration. Found: '" + peek().value + "'. Expected: '{'.",
-            "Missing arrow for function type declaration."
-        );
-    }
+
+    expect(
+        TokenType::LBRACE,
+        "Unexpected token at function declaration. Found: '" + peek().value + "'. Expected: '{'.",
+        "Missing arrow for function type declaration."
+    );
+
 
     func.body = handleScope(ScopeType::FUNCTION, func.name.value);
 
@@ -392,56 +485,54 @@ AST::Scope Parser::handleScope(const ScopeType &scopeOf, const std::string &func
 
     while (!check(TokenType::RBRACE) && !isEof())
     {
-        const Token currentToken = peek();
-
-        switch (currentToken.type)
+        switch (peek().type)
         {
             case TokenType::IDENTIFIER:
                 // Function call.
                 if (peekNext().type == TokenType::LPAREN)
                 {
-                    currentScope.statements.push_back(std::make_unique<AST::Node>(handleFnCall(), currentToken.line));
+                    currentScope.statements.push_back(std::make_unique<AST::Node>(handleFnCall(), peek().line));
                 }
                 // Assign to a variable.
                 else
                 {
-                    currentScope.statements.push_back(std::make_unique<AST::Node>(handleAssign(), currentToken.line));
+                    currentScope.statements.push_back(std::make_unique<AST::Node>(handleAssign(), peek().line));
                 }
                 break;
 
             case TokenType::VAR:
-                currentScope.statements.push_back(std::make_unique<AST::Node>(handleVarDecl(), currentToken.line));
+                currentScope.statements.push_back(std::make_unique<AST::Node>(handleVarDecl(), peek().line));
                 break;
 
             case TokenType::IF:
-                currentScope.statements.push_back(std::make_unique<AST::Node>(handleIfStatement(), currentToken.line));
+                currentScope.statements.push_back(std::make_unique<AST::Node>(handleIfStatement(), peek().line));
                 break;
 
             case TokenType::WHILE:
                 currentScope.statements.push_back(
-                    std::make_unique<AST::Node>(handleWhileStatement(), currentToken.line));
+                    std::make_unique<AST::Node>(handleWhileStatement(), peek().line));
                 break;
 
             case TokenType::FOR:
-                currentScope.statements.push_back(std::make_unique<AST::Node>(handleForStatement(), currentToken.line));
+                currentScope.statements.push_back(std::make_unique<AST::Node>(handleForStatement(), peek().line));
                 break;
 
             case TokenType::DO:
-                currentScope.statements.push_back(std::make_unique<AST::Node>(handleDoStatement(), currentToken.line));
+                currentScope.statements.push_back(std::make_unique<AST::Node>(handleDoStatement(), peek().line));
                 break;
 
             case TokenType::SWITCH:
                 currentScope.statements.push_back(
-                    std::make_unique<AST::Node>(handleSwitchStatement(), currentToken.line));
+                    std::make_unique<AST::Node>(handleSwitchStatement(), peek().line));
                 break;
 
             case TokenType::RETURN:
                 currentScope.statements.push_back(
-                    std::make_unique<AST::Node>(handleReturnStatement(), currentToken.line));
+                    std::make_unique<AST::Node>(handleReturnStatement(), peek().line));
                 break;
 
             default:
-                handleScopeError(currentToken, scopeName);
+                handleScopeError(peek(), scopeName);
                 advance();
                 break;
         }
@@ -496,7 +587,7 @@ void Parser::handleScopeError(const Token &actual, const std::string &scopeKind)
 
 AST::Node Parser::handleSingleLiner(const ScopeType &scopeOf)
 {
-    Token currentToken = peek();
+    const Token currentToken = peek();
     if (scopeOf == ScopeType::FUNCTION)
     {
         expect(
@@ -591,11 +682,9 @@ AST::Node Parser::handleSingleLiner(const ScopeType &scopeOf)
 
 AST::If Parser::handleIfStatement()
 {
-    const Token ifText = peek();
-
     expect(
         TokenType::IF,
-        "Unexpected token at if statement declaration. Found: '" + ifText.value + "'. Expected: 'if'."
+        "Unexpected token at if statement declaration. Found: '" + peek().value + "'. Expected: 'if'."
     );
 
     expect(

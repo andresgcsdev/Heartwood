@@ -33,6 +33,18 @@ private:
         DO
     };
 
+    enum class SyncContext
+    {
+        ROOT,
+        BLOCK,
+        FUNC_PARAM,
+        GLOBAL_VAR,
+        ENUM_MEMBER,
+        STRUCT_FIELD,
+        CONDITION,
+        SWITCH_CASE,
+        FOR_PARAM,
+    };
     // ----- Token list query -----
 
     // True when at the end of the token list.
@@ -62,18 +74,6 @@ private:
         return tokens.back();
     }
 
-    // Decreases the counter.
-    // Returns the current token, then decreases.
-    // Does not go out of bounds.
-    Token previous()
-    {
-        const Token t = peek();
-        if (counter > 0)
-            counter--;
-
-        return t;
-    }
-
     // Checks if the current token at peek() is of the given type.
     [[nodiscard]] bool check(const TokenType type) const { return peek().type == type; }
 
@@ -99,97 +99,84 @@ private:
         const Token actual = peek();
         errors.add(ErrorPhase::Parser, err_message, actual.line, actual.type == TokenType::EoF, tip);
 
-        return Token(expected, "", actual.line);
+        return Token(TokenType::ERROR, "", actual.line);
     }
 
     // ----- AST Node creation -----
 
     // Maps the AST node for a global variable scope.
     // Current Token at tokens[counter] must be a GLOBAL.
-    // Stops at a '}'.
     AST::GlobalBlock handleGlobal();
 
     // Maps the AST node for a function declaration.
     // Current Token at tokens[counter] must be a FUNCTION.
-    // Stops at a '}'.
     AST::FunctionDef handleFuncDecl();
 
     // Maps the AST node for a struct declaration.
     // Current Token at tokens[counter] must be a STRUCT.
-    // Stops at a '}'.
     AST::StructDecl handleStructDecl();
 
     // Maps the AST node for an Enum declaration.
     // Current Token at tokens[counter] must be an ENUM.
-    // Stops at a '}'.
     AST::EnumDecl handleEnumDecl();
 
     // Maps the AST node for a scope.
     // Current Token at tokens[counter] must be an LBRACE.
-    // Stops at a '}'.
     AST::Scope handleScope(const ScopeType &scopeOf, const std::string &functionName = "");
 
     // Maps the AST node for a single line instruction inside a conditional or loop block (if/else/while/for)
     // Current Token at tokens[counter] must be an LPAREN.
-    // Stops at a ';' or '}'.
     AST::Node handleSingleLiner(const ScopeType &scopeOf);
 
     // Maps the AST node for an if statement.
     // Current Token at tokens[counter] must be an IF.
-    // Stops at a ';' or '}'.
     AST::If handleIfStatement();
 
     // Maps the AST node for a while statement.
     // Current Token at tokens[counter] must be a WHILE.
-    // Stops at a ';' or '}'.
     AST::While handleWhileStatement();
 
     // Maps the AST node for a for statement.
     // Current Token at tokens[counter] must be a FOR.
-    // Stops at a ';' or '}'.
     AST::For handleForStatement();
 
     // Maps the AST node for a do-while statement.
     // Current Token at tokens[counter] must be a DO.
-    // Stops at a ';' or '}'.
     AST::Do_While handleDoStatement();
 
     // Maps the AST node for a switch statement.
     // Current Token at tokens[counter] must be a SWITCH.
-    // Stops at a '}'.
     AST::Switch handleSwitchStatement();
 
     // Maps the AST node for a variable declaration.
     // Current Token at tokens[counter] must be a VAR.
-    // Stops at a ';'.
     AST::VarDecl handleVarDecl();
 
     // Maps the AST node for a return statement.
     // Current Token at tokens[counter] must be a RETURN.
-    // Stops at a ';'.
     AST::Return handleReturnStatement();
+
+    // Maps the AST node for a break statement.
+    // Current Token at tokens[counter] must be a BREAK.
+    AST::Break handleBreakStatement();
 
     // Maps the AST node for type attribution.
     // Current Token at tokens[counter] must be a type.
-    // Stops at the last token representing the type: ']' for arrays and 'int'/'str'/etc for primitives.
     AST::TypeNode handleType();
 
     // Maps the AST node for an expression.
     // Current Token at tokens[counter] must be a literal or an identifier.
-    // Stops at the first token with no operators before it.
     AST::Node handleExpr();
 
     // Maps the AST node for a function call.
     // Current Token at tokens[counter] must be an identifier.
-    // Stops at a ')'.
     AST::FnCall handleFnCall();
 
     // Maps the AST node for a assign operation.
     // Current Token at tokens[counter] must be an identifier.
-    // Stops at a ';'.
     AST::Assign handleAssign();
 
-    // ----- General Errors -----
+    // ----- General Error Handling -----
 
     // Raises errors for unexpected declarations at root scope.
     // Has custom messages for each type of error with tips for the user.
@@ -198,4 +185,7 @@ private:
     // Raises errors for unexpected declarations at function/condition/loop scope.
     // Has custom messages for each type of error with tips for the user.
     void handleScopeError(const Token &actual, const std::string &scopeKind);
+
+    // Synchronizes the token at tokens[counter] to one that won't keep raising errors.
+    void sync(SyncContext context);
 };

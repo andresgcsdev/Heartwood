@@ -57,6 +57,8 @@ namespace
                 return Token(TokenType::BREAK, token, line);
             if (token == "return")
                 return Token(TokenType::RETURN, token, line);
+            if (token == "continue")
+                return Token(TokenType::CONTINUE, token, line);
 
             if (token == "var")
                 return Token(TokenType::VAR, token, line);

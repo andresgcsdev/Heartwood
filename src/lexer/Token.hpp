@@ -25,11 +25,19 @@ enum class TokenType
     EoF // End of file
 };
 
+struct columnSpan
+{
+    int start = 0;
+    int end = 0;
+};
+
 struct Token
 {
     TokenType type = TokenType::null;
     std::string value; // For identifiers or literals.
-    int line = -1; // For better error messages.
+    int line = 0;
+    columnSpan col;
+    bool synthetic = false;
 };
 
 // Basic generalization functions:

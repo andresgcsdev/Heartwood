@@ -18,6 +18,8 @@ struct ErrorNode
 {
     ErrorPhase phase;
     int line;
+    int startIndex; // Index of the first token related to this error in the token list.
+    int endIndex;  // Index of the last token related to this error in the token list.
     std::string message;
     std::string tips;
 };
@@ -27,12 +29,12 @@ class ErrorList
 {
 public:
     // Appends the found error at the end of the list.
-    void add(ErrorPhase phase, const std::string &message, int line, bool isEoF = false, const std::string &tips = "");
+    void add(ErrorNode error, bool isEoF = false);
 
     // Prints out in the terminal all of the current errors in the list.
     // First-in First-out order.
     // Stops program execution if any errors are found in the list.
-    void raiseAll(ErrorPhase phase);
+    void raiseAll(ErrorPhase phase, const std::vector<Token> &tokens) const;
 
     // Prints out in the terminal the given error.
     // Stops program execution.

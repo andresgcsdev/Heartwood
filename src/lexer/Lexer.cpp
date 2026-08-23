@@ -197,11 +197,17 @@ namespace
 
     // Transforms the given string into a token.
     // Then appends it to the end of the given token list.
+    // Moves the column start counter to the end of the token.
     // Returns true for successful conversion, false otherwise.
     // Does not clear the tokenBuffer if it finds an invalid token.
-    bool flushToken(std::string &tokenBuffer, std::vector<Token> &tokens, const int &line)
+    bool flushToken(std::string &tokenBuffer, std::vector<Token> &tokens, const int &line, int &columnStart,
+                    const int &columnCounter)
     {
-        if (tokenBuffer.empty()) return true;
+        if (tokenBuffer.empty())
+        {
+            columnStart = columnCounter + 1;
+            return true;
+        }
 
         Token actual;
         if (tokenBuffer.size() == 1)
@@ -212,14 +218,17 @@ namespace
 
         if (actual.type == TokenType::ERROR)
         {
-            tokens.push_back(Token(TokenType::ERROR, tokenBuffer, line));
+            tokens.push_back(Token(TokenType::ERROR, tokenBuffer, line, columnSpan(columnStart, columnCounter)));
+            columnStart = columnCounter + 1;
             return false;
         }
 
         if (actual.type == TokenType::BIGGER) actual = matchLargeToken(tokenBuffer, line);
 
+        actual.col = columnSpan(columnStart, columnCounter);
         tokens.push_back(actual);
         tokenBuffer.clear();
+        columnStart = columnCounter + 1;
         return true;
     }
 }
@@ -229,24 +238,28 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath, ErrorList &error
     std::ifstream file(filepath);
     if (!file.is_open())
     {
-        ErrorList::raiseThis(ErrorNode(ErrorPhase::Lexer, -1, "File not found"));
+        ErrorList::raiseThis(ErrorNode(ErrorPhase::Lexer, 0, 0, 0, "File not found"));
     }
     std::vector<Token> tokens;
     char c;
     int lineCounter = 1;
+    int columnCounter = 1;
+    int columnStart = 1;
     std::string tokenBuffer;
     bool inString = false;
     while (file.get(c))
     {
         // Single character match token, does not consider keywords.
-        const Token currentToken = matchSingleCharToken(c, lineCounter);
+        Token currentToken = matchSingleCharToken(c, lineCounter);
+        currentToken.col = columnSpan(columnStart, columnCounter);
         bool matched = true;
+        columnCounter++;
         // Start of string literal check.
         if (c == '"' && !inString)
         {
             inString = true;
             // Flushing token buffer.
-            matched = flushToken(tokenBuffer, tokens, currentToken.line);
+            matched = flushToken(tokenBuffer, tokens, currentToken.line, columnStart, columnCounter);
             tokenBuffer.push_back('"');
         }
         // New Line. Will break any token being built before.
@@ -256,14 +269,19 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath, ErrorList &error
             if (inString)
             {
                 matched = false;
+                flushToken(tokenBuffer, tokens, currentToken.line, columnStart, columnCounter);
             }
             // Break previous token.
             else if (!tokenBuffer.empty())
             {
-                matched = flushToken(tokenBuffer, tokens, currentToken.line);
+                matched = flushToken(tokenBuffer, tokens, currentToken.line, columnStart, columnCounter);
             }
             if (matched)
+            {
                 lineCounter++;
+                columnCounter = 1;
+                columnStart = 1;
+            }
         }
         // Inside string literal check.
         else if (inString)
@@ -272,9 +290,11 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath, ErrorList &error
             if (c == '"')
             {
                 tokenBuffer.push_back('"');
-                const Token largeToken = matchLargeToken(tokenBuffer, lineCounter);
+                Token largeToken = matchLargeToken(tokenBuffer, lineCounter);
+                largeToken.col = columnSpan(columnStart, columnCounter);
                 tokens.push_back(largeToken);
                 tokenBuffer.clear();
+                columnStart = columnCounter + 1;
                 inString = false;
             } else
             {
@@ -285,13 +305,13 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath, ErrorList &error
         else if (c == '\t' || currentToken.type == TokenType::SPACE)
         {
             // Flush previous token.
-            matched = flushToken(tokenBuffer, tokens, currentToken.line);
+            matched = flushToken(tokenBuffer, tokens, currentToken.line, columnStart, columnCounter);
         }
         // Ignore comments.
         else if (c == '#')
         {
             // Flush previous token.
-            matched = flushToken(tokenBuffer, tokens, currentToken.line);
+            matched = flushToken(tokenBuffer, tokens, currentToken.line, columnStart, columnCounter);
 
             // Looks for next line break or end of file.
             while (file.get(c) && c != '\n')
@@ -302,7 +322,6 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath, ErrorList &error
         // Unknown character.
         else if (currentToken.type == TokenType::ERROR)
         {
-            matched = false;
             tokenBuffer.push_back(c);
         }
         // New Token.
@@ -321,31 +340,32 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath, ErrorList &error
             {
                 // Single character token.
                 tokens.push_back(currentToken);
+                columnStart = columnCounter + 1;
             }
         }
         // Separating identifiers and Dots without messing up Float Literals.
         else if (!tokenBuffer.empty() && c == '.')
         {
-            const Token prevToken = matchLargeToken(tokenBuffer, lineCounter);
+            Token prevToken = matchLargeToken(tokenBuffer, lineCounter);
             if (prevToken.type == TokenType::IDENTIFIER)
             {
+                prevToken.col = columnSpan(columnStart, columnCounter - 1);
                 tokens.push_back(prevToken);
+                columnStart = columnCounter;
                 tokenBuffer.clear();
-                tokens.push_back(Token(TokenType::DOT, ".", lineCounter));
-            } else if (prevToken.type == TokenType::LITERAL_INT)
-            {
-                tokenBuffer.push_back(c);
+                tokens.push_back(Token(TokenType::DOT, ".", lineCounter, columnSpan(columnStart, columnCounter)));
+                columnStart = columnCounter + 1;
             } else
             {
                 tokenBuffer.push_back(c);
-                matched = false;
             }
         }
         // Checking for two character tokens that are only symbols (==, !=, >=, <=, ->, &&, ||).
         // Previous character at fullToken is always (<, >, =, !, -, &, |) or another character that is an identifier.
         else if (tokenBuffer.length() == 1)
         {
-            const Token prevToken = matchSingleCharToken(tokenBuffer.back(), lineCounter);
+            Token prevToken = matchSingleCharToken(tokenBuffer.back(), lineCounter);
+            prevToken.col = columnSpan(columnStart, columnCounter - 1);
             // Looking for ==, !=, >=, <=
             if (currentToken.type == TokenType::ASSIGN)
             {
@@ -353,27 +373,35 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath, ErrorList &error
                 {
                     case TokenType::LESS:
                         tokenBuffer.clear();
-                        tokens.push_back(Token(TokenType::LESS_EQUALS, "<=", lineCounter));
+                        tokens.push_back(Token(TokenType::LESS_EQUALS, "<=", lineCounter,
+                                               columnSpan(columnStart, columnCounter)));
+                        columnStart = columnCounter + 1;
                         break;
                     case TokenType::GREATER:
                         tokenBuffer.clear();
-                        tokens.push_back(Token(TokenType::GREATER_EQUALS, ">=", lineCounter));
+                        tokens.push_back(Token(TokenType::GREATER_EQUALS, ">=", lineCounter,
+                                               columnSpan(columnStart, columnCounter)));
+                        columnStart = columnCounter + 1;
                         break;
                     case TokenType::ASSIGN:
                         tokenBuffer.clear();
-                        tokens.push_back(Token(TokenType::EQUALS, "==", lineCounter));
+                        tokens.push_back(Token(TokenType::EQUALS, "==", lineCounter,
+                                               columnSpan(columnStart, columnCounter)));
+                        columnStart = columnCounter + 1;
                         break;
                     case TokenType::NOT:
                         tokenBuffer.clear();
-                        tokens.push_back(Token(TokenType::NOT_EQUALS, "!=", lineCounter));
+                        tokens.push_back(Token(TokenType::NOT_EQUALS, "!=", lineCounter,
+                                               columnSpan(columnStart, columnCounter)));
+                        columnStart = columnCounter + 1;
                         break;
                     default:
                         // Begins with something other than the expected tokens. Probably a separate token or identifier.
-                        if (prevToken.type != TokenType::ERROR)
-                            tokens.push_back(prevToken);
-                        else
+                        if (prevToken.type == TokenType::ERROR)
                             matched = false;
 
+                        tokens.push_back(prevToken);
+                        columnStart = columnCounter;
                         tokenBuffer.clear();
                         // Since this character is an '=', it could be a 2-character token.
                         tokenBuffer.push_back(c);
@@ -384,19 +412,22 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath, ErrorList &error
             else if (currentToken.type == TokenType::GREATER && prevToken.type == TokenType::MINUS)
             {
                 tokenBuffer.clear();
-                tokens.push_back(Token(TokenType::ARROW, "->", lineCounter));
+                tokens.push_back(Token(TokenType::ARROW, "->", lineCounter, columnSpan(columnStart, columnCounter)));
+                columnStart = columnCounter + 1;
             }
             // Looking for &&
             else if (currentToken.type == TokenType::SINGLE_AND && prevToken.type == TokenType::SINGLE_AND)
             {
                 tokenBuffer.clear();
-                tokens.push_back(Token{TokenType::AND, "&&", lineCounter});
+                tokens.push_back(Token(TokenType::AND, "&&", lineCounter, columnSpan(columnStart, columnCounter)));
+                columnStart = columnCounter + 1;
             }
             // Looking for ||
             else if (currentToken.type == TokenType::SINGLE_OR && prevToken.type == TokenType::SINGLE_OR)
             {
                 tokenBuffer.clear();
-                tokens.push_back(Token{TokenType::OR, "||", lineCounter});
+                tokens.push_back(Token(TokenType::OR, "||", lineCounter, columnSpan(columnStart, columnCounter)));
+                columnStart = columnCounter + 1;
             }
             // If not completing for a two-special-character token, append to end of string or discard previous token.
             else if (currentToken.type != TokenType::ERROR)
@@ -414,6 +445,7 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath, ErrorList &error
                         tokens.push_back(largePrevToken);
                     } else
                         tokens.push_back(prevToken);
+                    columnStart = columnCounter;
 
                     tokenBuffer.clear();
                     // This token could be one that completes a bigger two-special-character token.
@@ -421,17 +453,15 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath, ErrorList &error
                         type == TokenType::GREATER ||
                         currentToken.type == TokenType::ASSIGN || currentToken.type == TokenType::NOT || currentToken.
                         type == TokenType::MINUS)
-                        // Bigger token.
+                    // Bigger token.
                         tokenBuffer.push_back(c);
                     else
+                    {
                         // Single character token.
                         tokens.push_back(currentToken);
+                        columnStart = columnCounter + 1;
+                    }
                 }
-            }
-            // No match.
-            else
-            {
-                matched = false;
             }
         }
         // Matching for tokens after 2 characters.
@@ -444,7 +474,7 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath, ErrorList &error
             } else
             {
                 // Current token is not related to previous token.
-                matched = flushToken(tokenBuffer, tokens, lineCounter);
+                matched = flushToken(tokenBuffer, tokens, lineCounter, columnStart, columnCounter);
                 // Checking for bigger token possibility.
                 if (currentToken.type == TokenType::LESS || currentToken.type == TokenType::GREATER ||
                     currentToken.type == TokenType::ASSIGN || currentToken.type == TokenType::NOT || currentToken.type
@@ -458,10 +488,18 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath, ErrorList &error
         }
         if (!matched)
         {
-            if (inString)
-                errors.add(ErrorPhase::Lexer, "Unterminated string literal", lineCounter);
+            int index;
+            if (tokens.back().type == TokenType::ERROR)
+                index = tokens.size() - 1;
             else
-                errors.add(ErrorPhase::Lexer, "Invalid token \"" + tokenBuffer + "\".", lineCounter);
+                index = tokens.size() - 2;
+
+            if (inString)
+                errors.add(ErrorNode(ErrorPhase::Lexer, lineCounter, index, index,
+                                     "Unterminated string literal"));
+            else
+                errors.add(ErrorNode(ErrorPhase::Lexer, lineCounter, index, index,
+                                     "Invalid token \"" + tokenBuffer + "\"."));
 
             tokenBuffer.clear();
         }
@@ -469,12 +507,25 @@ std::vector<Token> Lexer::tokenize(const std::string &filepath, ErrorList &error
     file.close();
 
     // Flushing anything that remained in the buffer.
-    if (inString)
-        errors.add(ErrorPhase::Lexer, "Unterminated string literal", lineCounter);
-    if (!tokenBuffer.empty() && !flushToken(tokenBuffer, tokens, lineCounter))
-        errors.add(ErrorPhase::Lexer, "Invalid token \"" + tokenBuffer + "\".", lineCounter);
 
-    tokens.push_back(Token(TokenType::EoF, "", lineCounter));
+    if (!tokenBuffer.empty() && !flushToken(tokenBuffer, tokens, lineCounter, columnStart, columnCounter))
+    {
+        int index;
+        if (tokens.back().type == TokenType::ERROR)
+            index = tokens.size() - 1;
+        else
+            index = tokens.size() - 2;
+
+        if (inString)
+            errors.add(ErrorNode(ErrorPhase::Lexer, lineCounter, index, index,
+                                 "Unterminated string literal"));
+        else
+            errors.add(ErrorNode(ErrorPhase::Lexer, lineCounter, index, index,
+                                 "Invalid token \"" + tokenBuffer + "\"."));
+    }
+
+
+    tokens.push_back(Token(TokenType::EoF, "", lineCounter, columnSpan(columnStart, columnCounter)));
 
     return tokens;
 }

@@ -52,7 +52,7 @@ var mut count:int = 0;      # mutable
 var scores:int[10] = [1, 2, 3, ..., 10];    # fixed size, initialized at declaration.
 var mut groceries:str[2] = ["Milk"];        # fixed size, initialized any time.   
 var mut log:int[];                          # grows on access, initialized any time.
-var mut matrix:int[][] = [[0, 1],[]];       # multi-dimensional arrays, initialized any time. 
+var mut matrix:int[2][] = [[0, 1],[]];       # multi-dimensional arrays, initialized any time. 
 ```
 
 ### Functions
@@ -92,7 +92,7 @@ fn changeState(mut ref x:int[10]) -> bool
    # x is passed by reference, no copy is made
    # any alterations done to x inside of the function have effects outside of it
    # the reference is borrowed in the function, and cannot be deleted or point to other data
-   # all data only has a single reference at all times, it is only borrowed from function to function
+   # all data has only one reference at all times, it is only borrowed from function to function
 }
 ```
 

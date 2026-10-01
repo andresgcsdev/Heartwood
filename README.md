@@ -2,6 +2,8 @@
 
 A statically typed, procedural programming language designed for people learning to program.
 
+> **Status: paused.** The lexer and parser are implemented; semantic analysis and execution were never built. This repo is best read as a language design plus a front-end implementation.
+
 ---
 
 ## About
@@ -187,14 +189,15 @@ fn function_b()
 
 ## Implementation
 
-Heartwood is an interpreted language implemented in C++17. The pipeline:
+Heartwood is implemented in C++17. The planned pipeline:
 
 ```
 source file (.hw)
-    → Lexer       (tokenization)
-    → Parser      (AST construction)      [in progress]
-    → Semantic    (type checking)         [planned]
-    → Evaluator   (execution)             [planned]
+    → Lexer       (tokenization)          ✅ complete
+    → Parser      (AST construction)      ⏸ partial
+    → Semantic    (type checking)         ✗ not built
+    → Evaluator   (execution)             ✗ not built
+
 ```
 
 ### Building
